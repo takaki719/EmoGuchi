@@ -89,14 +89,10 @@ async def prefetch_phrases(
     if not room:
         raise HTTPException(status_code=404, detail="Room not found")
     
-    # TODO: Implement LLM phrase generation
-    # For now, return dummy phrases
-    phrases = [
-        "今日はとても良い天気ですね。",
-        "この料理は本当に美味しいです。",
-        "明日の会議の準備はできていますか？",
-        "最近読んだ本がとても面白かったです。",
-        "週末は家族と過ごす予定です。"
-    ][:batch_size]
+    from services.llm_service import llm_service
+    
+    # Generate phrases with LLM
+    phrase_data = await llm_service.generate_batch_phrases(batch_size, room.config.mode.value)
+    phrases = [phrase for phrase, _ in phrase_data]
     
     return {"phrases": phrases}

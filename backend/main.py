@@ -3,6 +3,7 @@ from fastapi.middleware.cors import CORSMiddleware
 import socketio
 from config import settings
 from api import rooms, debug
+from sockets.events import GameSocketEvents
 
 # Create FastAPI app
 app = FastAPI(
@@ -25,6 +26,9 @@ sio = socketio.AsyncServer(
     async_mode="asgi",
     cors_allowed_origins=settings.ALLOWED_ORIGINS
 )
+
+# Setup Socket.IO events
+game_events = GameSocketEvents(sio)
 
 # Include API routers
 app.include_router(rooms.router)
