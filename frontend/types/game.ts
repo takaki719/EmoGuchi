@@ -1,0 +1,74 @@
+export type GameMode = 'basic' | 'advanced';
+export type VoteType = '4choice' | '8choice';
+export type SpeakerOrder = 'random' | 'sequential';
+export type GamePhase = 'waiting' | 'in_round' | 'result' | 'closed';
+
+export interface RoomConfig {
+  mode: GameMode;
+  vote_type: VoteType;
+  speaker_order: SpeakerOrder;
+  vote_timeout: number;
+}
+
+export interface Player {
+  id: string;
+  name: string;
+  score: number;
+  is_host: boolean;
+  is_connected: boolean;
+}
+
+export interface Room {
+  id: string;
+  players: { [key: string]: Player };
+  config: RoomConfig;
+  phase: GamePhase;
+  current_speaker?: string;
+}
+
+export interface RoomState {
+  room_id: string;
+  players: string[];
+  phase: GamePhase;
+  config: RoomConfig;
+  current_speaker?: string;
+}
+
+export interface Round {
+  id: string;
+  phrase: string;
+  emotion_id: string;
+  speaker_name: string;
+}
+
+export interface RoundResult {
+  round_id: string;
+  correct_emotion: string;
+  speaker_name: string;
+  scores: { [playerName: string]: number };
+  votes: { [playerName: string]: string };
+}
+
+export interface EmotionChoice {
+  id: string;
+  name_ja: string;
+  name_en: string;
+}
+
+// Socket events
+export interface SocketEvents {
+  // Client to Server
+  join_room: (data: { roomId: string; playerName: string }) => void;
+  start_round: (data: {}) => void;
+  submit_vote: (data: { roundId: string; emotionId: string }) => void;
+
+  // Server to Client
+  connected: (data: { message: string }) => void;
+  player_joined: (data: { playerName: string; playerId: string }) => void;
+  player_disconnected: (data: { playerName: string; playerId: string }) => void;
+  room_state: (data: RoomState) => void;
+  round_start: (data: { roundId: string; phrase: string; speakerName: string }) => void;
+  speaker_emotion: (data: { roundId: string; emotionId: string }) => void;
+  round_result: (data: RoundResult) => void;
+  error: (data: { code: string; message: string }) => void;
+}
