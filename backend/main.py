@@ -2,6 +2,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 import socketio
 from config import settings
+from api import rooms, debug
 
 # Create FastAPI app
 app = FastAPI(
@@ -24,6 +25,10 @@ sio = socketio.AsyncServer(
     async_mode="asgi",
     cors_allowed_origins=settings.ALLOWED_ORIGINS
 )
+
+# Include API routers
+app.include_router(rooms.router)
+app.include_router(debug.router)
 
 # Create ASGI app that combines FastAPI and Socket.IO
 socket_app = socketio.ASGIApp(sio, app)
