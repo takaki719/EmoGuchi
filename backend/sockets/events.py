@@ -1,0 +1,312 @@
+import socketio
+from typing import Dict, Any
+from models.game import Player, GamePhase, Round
+from services.state_store import state_store
+import logging
+
+logger = logging.getLogger(__name__)
+
+class GameSocketEvents:
+    def __init__(self, sio: socketio.AsyncServer):
+        self.sio = sio
+        self.setup_events()
+    
+    def setup_events(self):
+        """Register all socket event handlers"""
+        
+        @self.sio.event
+        async def connect(sid, environ):
+            logger.info(f"Client connected: {sid}")
+            await self.sio.emit('connected', {'message': 'Connected to EMOGUCHI server'}, room=sid)
+        
+        @self.sio.event
+        async def disconnect(sid):
+            logger.info(f"Client disconnected: {sid}")
+            # Handle player disconnection
+            await self._handle_player_disconnect(sid)
+        
+        @self.sio.event
+        async def join_room(sid, data):
+            """Handle player joining a room"""
+            try:
+                room_id = data.get('roomId')
+                player_name = data.get('playerName')
+                
+                if not room_id or not player_name:
+                    await self.sio.emit('error', {
+                        'code': 'EMO-400',
+                        'message': 'Missing roomId or playerName'
+                    }, room=sid)
+                    return
+                
+                room = await state_store.get_room(room_id)
+                if not room:
+                    await self.sio.emit('error', {
+                        'code': 'EMO-404',
+                        'message': 'Room not found'
+                    }, room=sid)
+                    return
+                
+                # Create player
+                player = Player(name=player_name)
+                if not room.players:  # First player becomes host
+                    player.is_host = True
+                
+                room.players[player.id] = player
+                await state_store.update_room(room)
+                
+                # Join socket room
+                await self.sio.enter_room(sid, room_id)
+                
+                # Store player-room mapping
+                await self.sio.save_session(sid, {
+                    'player_id': player.id,
+                    'room_id': room_id
+                })
+                
+                # Notify room about new player
+                await self.sio.emit('player_joined', {
+                    'playerName': player.name,
+                    'playerId': player.id
+                }, room=room_id)
+                
+                # Send room state to new player
+                player_names = [p.name for p in room.players.values()]
+                await self.sio.emit('room_state', {
+                    'roomId': room.id,
+                    'players': player_names,
+                    'phase': room.phase,
+                    'config': room.config.dict()
+                }, room=sid)
+                
+                logger.info(f"Player {player_name} joined room {room_id}")
+                
+            except Exception as e:
+                logger.error(f"Error in join_room: {e}")
+                await self.sio.emit('error', {
+                    'code': 'EMO-500',
+                    'message': 'Internal server error'
+                }, room=sid)
+        
+        @self.sio.event
+        async def start_round(sid, data):
+            """Start a new round (host only)"""
+            try:
+                session = await self.sio.get_session(sid)
+                room_id = session.get('room_id')
+                player_id = session.get('player_id')
+                
+                if not room_id or not player_id:
+                    await self.sio.emit('error', {
+                        'code': 'EMO-401',
+                        'message': 'Not authenticated'
+                    }, room=sid)
+                    return
+                
+                room = await state_store.get_room(room_id)
+                if not room:
+                    await self.sio.emit('error', {
+                        'code': 'EMO-404',
+                        'message': 'Room not found'
+                    }, room=sid)
+                    return
+                
+                player = room.players.get(player_id)
+                if not player or not player.is_host:
+                    await self.sio.emit('error', {
+                        'code': 'EMO-403',
+                        'message': 'Only host can start rounds'
+                    }, room=sid)
+                    return
+                
+                if room.phase != GamePhase.WAITING:
+                    await self.sio.emit('error', {
+                        'code': 'EMO-409',
+                        'message': 'Room is not in waiting phase'
+                    }, room=sid)
+                    return
+                
+                # TODO: Generate phrase and emotion with LLM
+                # For now, use dummy data
+                phrase = "今日はとても良い天気ですね。"
+                emotion_id = "joy"
+                
+                # Get current speaker
+                speaker = room.get_current_speaker()
+                if not speaker:
+                    await self.sio.emit('error', {
+                        'code': 'EMO-400',
+                        'message': 'No players available'
+                    }, room=sid)
+                    return
+                
+                # Create round
+                round_data = Round(
+                    phrase=phrase,
+                    emotion_id=emotion_id,
+                    speaker_id=speaker.id
+                )
+                
+                room.current_round = round_data
+                room.phase = GamePhase.IN_ROUND
+                await state_store.update_room(room)
+                
+                # Send round start to all players
+                await self.sio.emit('round_start', {
+                    'roundId': round_data.id,
+                    'phrase': phrase,
+                    'speakerName': speaker.name
+                }, room=room_id)
+                
+                # Send emotion to speaker privately
+                speaker_sids = [s for s in self.sio.manager.get_participants(room_id, '/') 
+                              if (await self.sio.get_session(s)).get('player_id') == speaker.id]
+                
+                for speaker_sid in speaker_sids:
+                    await self.sio.emit('speaker_emotion', {
+                        'roundId': round_data.id,
+                        'emotionId': emotion_id
+                    }, room=speaker_sid)
+                
+                logger.info(f"Round started in room {room_id}, speaker: {speaker.name}")
+                
+            except Exception as e:
+                logger.error(f"Error in start_round: {e}")
+                await self.sio.emit('error', {
+                    'code': 'EMO-500',
+                    'message': 'Internal server error'
+                }, room=sid)
+        
+        @self.sio.event
+        async def submit_vote(sid, data):
+            """Submit vote for current round"""
+            try:
+                session = await self.sio.get_session(sid)
+                room_id = session.get('room_id')
+                player_id = session.get('player_id')
+                
+                round_id = data.get('roundId')
+                emotion_id = data.get('emotionId')
+                
+                if not room_id or not player_id:
+                    await self.sio.emit('error', {
+                        'code': 'EMO-401',
+                        'message': 'Not authenticated'
+                    }, room=sid)
+                    return
+                
+                room = await state_store.get_room(room_id)
+                if not room or not room.current_round:
+                    await self.sio.emit('error', {
+                        'code': 'EMO-404',
+                        'message': 'No active round'
+                    }, room=sid)
+                    return
+                
+                if room.current_round.id != round_id:
+                    await self.sio.emit('error', {
+                        'code': 'EMO-400',
+                        'message': 'Invalid round ID'
+                    }, room=sid)
+                    return
+                
+                # Don't allow speaker to vote
+                if room.current_round.speaker_id == player_id:
+                    await self.sio.emit('error', {
+                        'code': 'EMO-400',
+                        'message': 'Speaker cannot vote'
+                    }, room=sid)
+                    return
+                
+                # Record vote
+                room.current_round.votes[player_id] = emotion_id
+                await state_store.update_room(room)
+                
+                # Check if all listeners have voted
+                listener_count = len(room.players) - 1  # Exclude speaker
+                if len(room.current_round.votes) >= listener_count:
+                    await self._complete_round(room)
+                
+                logger.info(f"Vote submitted by player {player_id} in room {room_id}")
+                
+            except Exception as e:
+                logger.error(f"Error in submit_vote: {e}")
+                await self.sio.emit('error', {
+                    'code': 'EMO-500',
+                    'message': 'Internal server error'
+                }, room=sid)
+    
+    async def _handle_player_disconnect(self, sid: str):
+        """Handle player disconnection"""
+        try:
+            session = await self.sio.get_session(sid)
+            room_id = session.get('room_id')
+            player_id = session.get('player_id')
+            
+            if room_id and player_id:
+                room = await state_store.get_room(room_id)
+                if room and player_id in room.players:
+                    player = room.players[player_id]
+                    player.is_connected = False
+                    await state_store.update_room(room)
+                    
+                    await self.sio.emit('player_disconnected', {
+                        'playerName': player.name,
+                        'playerId': player_id
+                    }, room=room_id)
+                    
+        except Exception as e:
+            logger.error(f"Error handling disconnect: {e}")
+    
+    async def _complete_round(self, room):
+        """Complete current round and calculate scores"""
+        try:
+            if not room.current_round:
+                return
+            
+            round_data = room.current_round
+            correct_emotion = round_data.emotion_id
+            
+            # Calculate scores
+            speaker = room.players[round_data.speaker_id]
+            correct_votes = 0
+            
+            for player_id, voted_emotion in round_data.votes.items():
+                if voted_emotion == correct_emotion:
+                    # Listener gets point for correct guess
+                    room.players[player_id].score += 1
+                    correct_votes += 1
+            
+            # Speaker gets points based on how many guessed correctly
+            speaker.score += correct_votes
+            
+            # Mark round as completed
+            round_data.is_completed = True
+            room.round_history.append(round_data)
+            room.current_round = None
+            room.phase = GamePhase.RESULT
+            
+            # Move to next speaker
+            room.current_speaker_index = (room.current_speaker_index + 1) % len(room.players)
+            
+            await state_store.update_room(room)
+            
+            # Send results
+            scores = {player.name: player.score for player in room.players.values()}
+            
+            await self.sio.emit('round_result', {
+                'roundId': round_data.id,
+                'correctEmotion': correct_emotion,
+                'speakerName': speaker.name,
+                'scores': scores,
+                'votes': {room.players[pid].name: emotion for pid, emotion in round_data.votes.items()}
+            }, room=room.id)
+            
+            # Transition back to waiting phase after result
+            room.phase = GamePhase.WAITING
+            await state_store.update_room(room)
+            
+            logger.info(f"Round completed in room {room.id}")
+            
+        except Exception as e:
+            logger.error(f"Error completing round: {e}")
