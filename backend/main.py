@@ -6,6 +6,8 @@ import uuid
 import os
 
 from .sockets.room import socket_app
+from .store import store
+from .services.prefetch import prefetch_phrases
 
 app = FastAPI(title="EMOGUCHI API", version="v1")
 
@@ -56,7 +58,7 @@ async def require_host_token(room_id: str, authorization: Optional[str] = Header
     if authorization is None or not authorization.startswith("Bearer "):
         raise HTTPException(status_code=401, detail="Missing host token")
     token = authorization.split(" ", 1)[1]
-    room = rooms.get(room_id)
+    room = store.rooms.get(room_id)
     if not room or room["hostToken"] != token:
         raise HTTPException(status_code=403, detail="Invalid host token")
     return room
@@ -67,13 +69,13 @@ async def create_room(config: RoomConfig):
     room_id = str(uuid.uuid4())
     host_token = str(uuid.uuid4())
     room_state = RoomState(roomId=room_id, config=config)
-    rooms[room_id] = {"state": room_state, "hostToken": host_token}
+    store.rooms[room_id] = {"state": room_state, "hostToken": host_token}
     return RoomCreated(roomId=room_id, hostToken=host_token)
 
 
 @app.get("/api/v1/rooms/{room_id}", response_model=RoomState)
 async def get_room(room_id: str):
-    room = rooms.get(room_id)
+    room = store.rooms.get(room_id)
     if not room:
         raise HTTPException(status_code=404, detail="Room not found")
     return room["state"]
@@ -81,13 +83,13 @@ async def get_room(room_id: str):
 
 @app.delete("/api/v1/rooms/{room_id}")
 async def delete_room(room_id: str, room=Depends(require_host_token)):
-    rooms.pop(room_id, None)
+    store.rooms.pop(room_id, None)
     return {"ok": True}
 
 
 @app.post("/api/v1/rooms/{room_id}/prefetch", response_model=PrefetchResult)
 async def prefetch(room_id: str, req: PrefetchRequest, room=Depends(require_host_token)):
-    phrases = [f"phrase {i}" for i in range(req.batchSize)]
+    phrases = await prefetch_phrases(req.batchSize)
     return PrefetchResult(phrases=phrases)
 
 
@@ -97,5 +99,5 @@ async def debug_rooms(x_debug_token: Optional[str] = Header(None)):
         raise HTTPException(status_code=404, detail="Debug API not enabled")
     if x_debug_token != DEBUG_TOKEN:
         raise HTTPException(status_code=401, detail="Invalid debug token")
-    return {"rooms": list(rooms.keys())}
+    return {"rooms": list(store.rooms.keys())}
 

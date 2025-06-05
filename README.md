@@ -12,3 +12,40 @@ uvicorn backend.main:app --reload
 ```
 
 The Socket.IO server is available under `/ws` and REST endpoints are prefixed with `/api/v1`.
+
+## Example Socket.IO client
+
+Below is a minimal example using the JavaScript client:
+
+```javascript
+import { io } from 'socket.io-client';
+
+const socket = io('http://localhost:8000/ws');
+
+// join a room
+socket.emit('join_room', { roomId: '<room-id>', playerName: 'Alice' });
+
+// receive round start broadcast
+socket.on('round_start', ({ roundId, phrase }) => {
+  console.log(`Round ${roundId}:`, phrase);
+  // submit a vote (example emotionId: 1)
+  socket.emit('submit_vote', { roundId, emotionId: 1 });
+});
+
+// receive final scores
+socket.on('round_result', (payload) => {
+  console.log('Result:', payload);
+});
+```
+## Frontend
+
+The Next.js client lives in [`frontend/`](frontend/). Install dependencies and start the development server:
+
+```bash
+cd frontend
+npm install
+cp .env.local.example .env.local
+npm run dev
+```
+
+The backend can be run in another terminal with the command shown above.
