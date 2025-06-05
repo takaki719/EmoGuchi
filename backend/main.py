@@ -5,6 +5,7 @@ from typing import List, Literal, Optional
 import uuid
 
 from .sockets.room import socket_app
+from .services.prefetch import prefetch_phrases
 
 app = FastAPI(title="EMOGUCHI API", version="v1")
 
@@ -86,7 +87,7 @@ async def delete_room(room_id: str, room=Depends(require_host_token)):
 
 @app.post("/api/v1/rooms/{room_id}/prefetch", response_model=PrefetchResult)
 async def prefetch(room_id: str, req: PrefetchRequest, room=Depends(require_host_token)):
-    phrases = [f"phrase {i}" for i in range(req.batchSize)]
+    phrases = await prefetch_phrases(req.batchSize)
     return PrefetchResult(phrases=phrases)
 
 

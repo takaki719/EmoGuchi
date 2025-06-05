@@ -37,3 +37,15 @@ socket.on('round_result', (payload) => {
   console.log('Result:', payload);
 });
 ```
+## Frontend
+
+The Next.js client lives in [`frontend/`](frontend/). Install dependencies and start the development server:
+
+```bash
+cd frontend
+npm install
+cp .env.local.example .env.local
+npm run dev
+```
+
+The backend can be run in another terminal with the command shown above.
