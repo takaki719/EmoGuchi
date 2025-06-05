@@ -1,30 +1,22 @@
-import { useEffect } from 'react';
+import { useEffect, useCallback } from 'react';
 import { socketClient } from '@/socket/client';
 import { useGameStore } from '@/stores/gameStore';
 import { RoomState, Round, RoundResult } from '@/types/game';
 
 export const useSocket = () => {
-  const {
-    setConnected,
-    setRoomState,
-    setCurrentRound,
-    setSpeakerEmotion,
-    setLastResult,
-    setError,
-    playerName
-  } = useGameStore();
+  const store = useGameStore();
 
   useEffect(() => {
     const socket = socketClient.connect();
 
     // Connection events
     socket.on('connect', () => {
-      setConnected(true);
-      setError(null);
+      store.setConnected(true);
+      store.setError(null);
     });
 
     socket.on('disconnect', () => {
-      setConnected(false);
+      store.setConnected(false);
     });
 
     socket.on('connected', (data) => {
@@ -33,7 +25,7 @@ export const useSocket = () => {
 
     // Room events
     socket.on('room_state', (data: RoomState) => {
-      setRoomState(data);
+      store.setRoomState(data);
     });
 
     socket.on('player_joined', (data) => {
@@ -53,23 +45,23 @@ export const useSocket = () => {
         emotion_id: '', // Hidden from listeners
         speaker_name: data.speakerName
       };
-      setCurrentRound(round);
-      setLastResult(null);
+      store.setCurrentRound(round);
+      store.setLastResult(null);
     });
 
     socket.on('speaker_emotion', (data) => {
-      setSpeakerEmotion(data.emotionId);
+      store.setSpeakerEmotion(data.emotionId);
     });
 
     socket.on('round_result', (data: RoundResult) => {
-      setLastResult(data);
-      setCurrentRound(null);
-      setSpeakerEmotion(null);
+      store.setLastResult(data);
+      store.setCurrentRound(null);
+      store.setSpeakerEmotion(null);
     });
 
     // Error handling
     socket.on('error', (data) => {
-      setError(`${data.code}: ${data.message}`);
+      store.setError(`${data.code}: ${data.message}`);
     });
 
     return () => {
@@ -84,35 +76,28 @@ export const useSocket = () => {
       socket.off('round_result');
       socket.off('error');
     };
-  }, [
-    setConnected,
-    setRoomState,
-    setCurrentRound,
-    setSpeakerEmotion,
-    setLastResult,
-    setError
-  ]);
+  }, []); // 依存配列を空にして無限ループを防ぐ
 
-  const joinRoom = (roomId: string, playerName: string) => {
+  const joinRoom = useCallback((roomId: string, playerName: string) => {
     const socket = socketClient.getSocket();
     if (socket) {
       socket.emit('join_room', { roomId, playerName });
     }
-  };
+  }, []);
 
-  const startRound = () => {
+  const startRound = useCallback(() => {
     const socket = socketClient.getSocket();
     if (socket) {
       socket.emit('start_round', {});
     }
-  };
+  }, []);
 
-  const submitVote = (roundId: string, emotionId: string) => {
+  const submitVote = useCallback((roundId: string, emotionId: string) => {
     const socket = socketClient.getSocket();
     if (socket) {
       socket.emit('submit_vote', { roundId, emotionId });
     }
-  };
+  }, []);
 
   return {
     socket: socketClient.getSocket(),

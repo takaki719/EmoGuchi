@@ -28,11 +28,8 @@ export default function RoomPage({ params }: { params: { roomId: string } }) {
   useEffect(() => {
     if (playerName) {
       setPlayerName(playerName);
-      if (isConnected) {
-        joinRoom(roomId, playerName);
-      }
     }
-  }, [playerName, roomId, isConnected, joinRoom, setPlayerName]);
+  }, [playerName, setPlayerName]);
 
   useEffect(() => {
     if (isConnected && playerName && !roomState) {

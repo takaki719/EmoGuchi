@@ -5,7 +5,7 @@ class SocketClient {
   private socket: Socket | null = null;
   private url: string;
 
-  constructor(url: string = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000') {
+  constructor(url: string = typeof window !== 'undefined' ? (process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000') : 'http://localhost:8000') {
     this.url = url;
   }
 
@@ -27,7 +27,7 @@ class SocketClient {
       console.log('Disconnected from server');
     });
 
-    this.socket.on('connect_error', (error) => {
+    this.socket.on('connect_error', (error: any) => {
       console.error('Connection error:', error);
     });
 

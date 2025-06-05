@@ -35,6 +35,9 @@ class RoomConfig(BaseModel):
     vote_type: VoteType = VoteType.FOUR_CHOICE
     speaker_order: SpeakerOrder = SpeakerOrder.SEQUENTIAL
     vote_timeout: int = 30  # seconds
+    
+    class Config:
+        use_enum_values = True
 
 class Round(BaseModel):
     id: str = Field(default_factory=lambda: str(uuid.uuid4()))
