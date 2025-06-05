@@ -12,3 +12,16 @@ uvicorn backend.main:app --reload
 ```
 
 The Socket.IO server is available under `/ws` and REST endpoints are prefixed with `/api/v1`.
+
+## Frontend
+
+The Next.js client lives in [`frontend/`](frontend/). Install dependencies and start the development server:
+
+```bash
+cd frontend
+npm install
+cp .env.local.example .env.local
+npm run dev
+```
+
+The backend can be run in another terminal with the command shown above.
