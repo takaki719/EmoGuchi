@@ -1,5 +1,5 @@
 import socketio
-from ..store import rooms
+from ..store import store
 
 sio = socketio.AsyncServer(async_mode="asgi")
 socket_app = socketio.ASGIApp(sio, socketio_path="/ws/socket.io")
@@ -14,11 +14,11 @@ async def connect(sid, environ, auth):
 async def join_room(sid, data):
     room_id = data.get("roomId")
     player_name = data.get("playerName")
-    if room_id not in rooms:
+    if room_id not in store.rooms:
         return {"status": "error", "message": "Room not found"}
     await sio.save_session(sid, {"room_id": room_id, "playerName": player_name})
     await sio.enter_room(sid, room_id)
-    state = rooms[room_id]["state"]
+    state = store.rooms[room_id]["state"]
     state.players.append(player_name)
     await sio.emit("player_joined", {"playerName": player_name}, room=room_id)
     return {"status": "ok"}
