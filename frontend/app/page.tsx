@@ -12,7 +12,7 @@ export default function Home() {
   const createRoom = async () => {
     setIsCreating(true);
     try {
-      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'}/api/v1/rooms`, {
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8001'}/api/v1/rooms`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

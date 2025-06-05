@@ -5,7 +5,7 @@ class SocketClient {
   private socket: Socket | null = null;
   private url: string;
 
-  constructor(url: string = typeof window !== 'undefined' ? (process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000') : 'http://localhost:8000') {
+  constructor(url: string = typeof window !== 'undefined' ? (process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8001') : 'http://localhost:8001') {
     this.url = url;
   }
 
@@ -15,8 +15,10 @@ class SocketClient {
     }
 
     this.socket = io(this.url, {
-      transports: ['websocket'],
+      transports: ['polling', 'websocket'],
       autoConnect: true,
+      timeout: 20000,
+      forceNew: true,
     });
 
     this.socket.on('connect', () => {

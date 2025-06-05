@@ -24,7 +24,9 @@ app.add_middleware(
 # Create Socket.IO server
 sio = socketio.AsyncServer(
     async_mode="asgi",
-    cors_allowed_origins=settings.ALLOWED_ORIGINS
+    cors_allowed_origins=settings.ALLOWED_ORIGINS,
+    logger=True,
+    engineio_logger=True
 )
 
 # Setup Socket.IO events
@@ -44,6 +46,10 @@ async def root():
 @app.get("/health")
 async def health_check():
     return {"status": "healthy"}
+
+@app.get("/socket.io/")
+async def socket_info():
+    return {"message": "Socket.IO endpoint"}
 
 if __name__ == "__main__":
     import uvicorn

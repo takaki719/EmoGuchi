@@ -4,11 +4,12 @@ from typing import List
 class Settings:
     # Server settings
     HOST: str = "0.0.0.0"
-    PORT: int = 8000
+    PORT: int = 8001
     
     # CORS settings
     ALLOWED_ORIGINS: List[str] = [
         "http://localhost:3000",
+        "http://localhost:3001",
         "https://emoguchi.vercel.app"
     ]
     

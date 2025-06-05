@@ -7,16 +7,24 @@ export const useSocket = () => {
   const store = useGameStore();
 
   useEffect(() => {
+    console.log('useSocket: Setting up socket connection');
     const socket = socketClient.connect();
 
     // Connection events
     socket.on('connect', () => {
+      console.log('useSocket: Connected to server');
       store.setConnected(true);
       store.setError(null);
     });
 
     socket.on('disconnect', () => {
+      console.log('useSocket: Disconnected from server');
       store.setConnected(false);
+    });
+
+    socket.on('connect_error', (error: any) => {
+      console.error('useSocket: Connection error:', error);
+      store.setError(`Connection failed: ${error.message || error}`);
     });
 
     socket.on('connected', (data) => {
@@ -67,6 +75,7 @@ export const useSocket = () => {
     return () => {
       socket.off('connect');
       socket.off('disconnect');
+      socket.off('connect_error');
       socket.off('connected');
       socket.off('room_state');
       socket.off('player_joined');
