@@ -3,6 +3,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 from typing import List, Literal, Optional
 import uuid
+import os
 
 from .sockets.room import socket_app
 
@@ -26,7 +27,7 @@ app.mount("/ws", socket_app)
 
 # In-memory state store
 rooms = {}
-DEBUG_TOKEN = "debug"
+DEBUG_TOKEN = os.getenv("DEBUG_API_TOKEN")
 
 class RoomConfig(BaseModel):
     mode: Literal["basic", "advanced"] = "basic"
@@ -92,6 +93,8 @@ async def prefetch(room_id: str, req: PrefetchRequest, room=Depends(require_host
 
 @app.get("/api/v1/debug/rooms")
 async def debug_rooms(x_debug_token: Optional[str] = Header(None)):
+    if DEBUG_TOKEN is None:
+        raise HTTPException(status_code=404, detail="Debug API not enabled")
     if x_debug_token != DEBUG_TOKEN:
         raise HTTPException(status_code=401, detail="Invalid debug token")
     return {"rooms": list(rooms.keys())}
