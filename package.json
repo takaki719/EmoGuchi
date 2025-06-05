@@ -1,0 +1,13 @@
+{
+  "name": "emoguchi",
+  "version": "1.0.0",
+  "description": "音声演技 × 感情推定ゲーム",
+  "scripts": {
+    "dev": "./start_dev.sh",
+    "dev:frontend": "cd frontend && npm run dev",
+    "dev:backend": "cd backend && python3 main.py",
+    "install:all": "cd frontend && npm install"
+  },
+  "author": "",
+  "license": "MIT"
+}

@@ -83,19 +83,19 @@ class CreateRoomRequest(BaseModel):
     speaker_order: SpeakerOrder = SpeakerOrder.SEQUENTIAL
 
 class CreateRoomResponse(BaseModel):
-    room_id: str
-    host_token: str
+    roomId: str
+    hostToken: str
 
 class JoinRoomRequest(BaseModel):
     room_id: str
     player_name: str
 
 class RoomState(BaseModel):
-    room_id: str
+    roomId: str
     players: List[str]  # player names
     phase: GamePhase
     config: RoomConfig
-    current_speaker: Optional[str] = None  # player name
+    currentSpeaker: Optional[str] = None  # player name
 
 class VoteRequest(BaseModel):
     round_id: str

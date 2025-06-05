@@ -1,0 +1,83 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Socket.IO Test</title>
+    <script src="https://cdn.socket.io/4.7.2/socket.io.min.js"></script>
+</head>
+<body>
+    <h1>Socket.IO Connection Test</h1>
+    <div id="status">Connecting...</div>
+    <div id="messages"></div>
+    
+    <button onclick="createRoom()">Create Room</button>
+    <button onclick="joinTestRoom()">Join Test Room</button>
+
+    <script>
+        const socket = io('http://localhost:8002');
+        const statusDiv = document.getElementById('status');
+        const messagesDiv = document.getElementById('messages');
+        
+        function addMessage(message) {
+            const div = document.createElement('div');
+            div.textContent = new Date().toLocaleTimeString() + ': ' + message;
+            messagesDiv.appendChild(div);
+        }
+        
+        socket.on('connect', () => {
+            statusDiv.textContent = 'Connected';
+            addMessage('Connected to server');
+        });
+        
+        socket.on('disconnect', () => {
+            statusDiv.textContent = 'Disconnected';
+            addMessage('Disconnected from server');
+        });
+        
+        socket.on('connected', (data) => {
+            addMessage('Server says: ' + data.message);
+        });
+        
+        socket.on('error', (data) => {
+            addMessage('Error: ' + data.code + ' - ' + data.message);
+        });
+        
+        socket.on('room_state', (data) => {
+            addMessage('Room state: ' + JSON.stringify(data));
+        });
+        
+        async function createRoom() {
+            try {
+                const response = await fetch('http://localhost:8002/api/v1/rooms', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        mode: 'basic',
+                        vote_type: '4choice',
+                        speaker_order: 'sequential'
+                    })
+                });
+                
+                const data = await response.json();
+                addMessage('Room created: ' + JSON.stringify(data));
+                window.testRoomId = data.roomId;
+            } catch (error) {
+                addMessage('Failed to create room: ' + error.message);
+            }
+        }
+        
+        function joinTestRoom() {
+            if (window.testRoomId) {
+                socket.emit('join_room', {
+                    roomId: window.testRoomId,
+                    playerName: 'TestPlayer'
+                });
+                addMessage('Sent join_room event');
+            } else {
+                addMessage('No room created yet. Create a room first.');
+            }
+        }
+    </script>
+</body>
+</html>

@@ -5,7 +5,7 @@ class SocketClient {
   private socket: Socket | null = null;
   private url: string;
 
-  constructor(url: string = typeof window !== 'undefined' ? (process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8001') : 'http://localhost:8001') {
+  constructor(url: string = typeof window !== 'undefined' ? (process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8002') : 'http://localhost:8002') {
     this.url = url;
   }
 

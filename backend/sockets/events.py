@@ -29,10 +29,12 @@ class GameSocketEvents:
         async def join_room(sid, data):
             """Handle player joining a room"""
             try:
+                logger.info(f"join_room event received from {sid} with data: {data}")
                 room_id = data.get('roomId')
                 player_name = data.get('playerName')
                 
                 if not room_id or not player_name:
+                    logger.error(f"Missing data - roomId: {room_id}, playerName: {player_name}")
                     await self.sio.emit('error', {
                         'code': 'EMO-400',
                         'message': 'Missing roomId or playerName'
@@ -72,20 +74,27 @@ class GameSocketEvents:
                 
                 # Send room state to new player
                 player_names = [p.name for p in room.players.values()]
+                current_speaker = None
+                if room.current_round and room.phase == 'in_round':
+                    speaker = room.get_current_speaker()
+                    if speaker:
+                        current_speaker = speaker.name
+                
                 await self.sio.emit('room_state', {
                     'roomId': room.id,
                     'players': player_names,
                     'phase': room.phase,
-                    'config': room.config.dict()
+                    'config': room.config.dict(),
+                    'currentSpeaker': current_speaker
                 }, room=sid)
                 
                 logger.info(f"Player {player_name} joined room {room_id}")
                 
             except Exception as e:
-                logger.error(f"Error in join_room: {e}")
+                logger.error(f"Error in join_room: {e}", exc_info=True)
                 await self.sio.emit('error', {
                     'code': 'EMO-500',
-                    'message': 'Internal server error'
+                    'message': f'Internal server error: {str(e)}'
                 }, room=sid)
         
         @self.sio.event
@@ -170,10 +179,10 @@ class GameSocketEvents:
                 logger.info(f"Round started in room {room_id}, speaker: {speaker.name}")
                 
             except Exception as e:
-                logger.error(f"Error in start_round: {e}")
+                logger.error(f"Error in start_round: {e}", exc_info=True)
                 await self.sio.emit('error', {
                     'code': 'EMO-500',
-                    'message': 'Internal server error'
+                    'message': f'Internal server error: {str(e)}'
                 }, room=sid)
         
         @self.sio.event
@@ -229,10 +238,10 @@ class GameSocketEvents:
                 logger.info(f"Vote submitted by player {player_id} in room {room_id}")
                 
             except Exception as e:
-                logger.error(f"Error in submit_vote: {e}")
+                logger.error(f"Error in submit_vote: {e}", exc_info=True)
                 await self.sio.emit('error', {
                     'code': 'EMO-500',
-                    'message': 'Internal server error'
+                    'message': f'Internal server error: {str(e)}'
                 }, room=sid)
     
     async def _handle_player_disconnect(self, sid: str):

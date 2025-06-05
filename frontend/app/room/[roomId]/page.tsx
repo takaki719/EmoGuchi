@@ -137,7 +137,7 @@ export default function RoomPage({ params }: { params: { roomId: string } }) {
                 {player === playerName && (
                   <div className="text-xs text-blue-600">あなた</div>
                 )}
-                {player === roomState.current_speaker && (
+                {player === roomState.currentSpeaker && (
                   <div className="text-xs text-green-600">スピーカー</div>
                 )}
               </div>

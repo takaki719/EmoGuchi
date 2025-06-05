@@ -23,15 +23,15 @@ export interface Room {
   players: { [key: string]: Player };
   config: RoomConfig;
   phase: GamePhase;
-  current_speaker?: string;
+  currentSpeaker?: string;
 }
 
 export interface RoomState {
-  room_id: string;
+  roomId: string;
   players: string[];
   phase: GamePhase;
   config: RoomConfig;
-  current_speaker?: string;
+  currentSpeaker?: string;
 }
 
 export interface Round {

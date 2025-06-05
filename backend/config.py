@@ -4,7 +4,7 @@ from typing import List
 class Settings:
     # Server settings
     HOST: str = "0.0.0.0"
-    PORT: int = 8001
+    PORT: int = 8002
     
     # CORS settings
     ALLOWED_ORIGINS: List[str] = [

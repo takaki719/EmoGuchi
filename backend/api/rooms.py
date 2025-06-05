@@ -39,8 +39,8 @@ async def create_room(request: CreateRoomRequest):
         await state_store.create_room(room)
         
         return CreateRoomResponse(
-            room_id=room.id,
-            host_token=room.host_token
+            roomId=room.id,
+            hostToken=room.host_token
         )
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Failed to create room: {str(e)}")
@@ -62,11 +62,11 @@ async def get_room(room_id: str):
             current_speaker = speaker.name
     
     return RoomState(
-        room_id=room.id,
+        roomId=room.id,
         players=player_names,
         phase=room.phase,
         config=room.config,
-        current_speaker=current_speaker
+        currentSpeaker=current_speaker
     )
 
 @router.delete("/rooms/{room_id}")
