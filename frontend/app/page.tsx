@@ -29,8 +29,8 @@ export default function Home() {
       }
 
       const data = await response.json();
-      localStorage.setItem('hostToken', data.host_token);
-      router.push(`/room/${data.room_id}?name=${encodeURIComponent(playerName)}&host=true`);
+      localStorage.setItem('hostToken', data.hostToken);
+      router.push(`/room/${data.roomId}?name=${encodeURIComponent(playerName)}&host=true`);
     } catch (error) {
       console.error('Error creating room:', error);
       alert('ルームの作成に失敗しました');
