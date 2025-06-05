@@ -5,6 +5,7 @@ from typing import List, Literal, Optional
 import uuid
 
 from .sockets.room import socket_app
+from .store import rooms
 
 app = FastAPI(title="EMOGUCHI API", version="v1")
 
@@ -25,7 +26,6 @@ app.add_middleware(
 app.mount("/ws", socket_app)
 
 # In-memory state store
-rooms = {}
 DEBUG_TOKEN = "debug"
 
 class RoomConfig(BaseModel):

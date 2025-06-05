@@ -1,5 +1,5 @@
 import socketio
-from ..main import rooms
+from ..store import rooms
 
 sio = socketio.AsyncServer(async_mode="asgi")
 socket_app = socketio.ASGIApp(sio, socketio_path="/ws/socket.io")
