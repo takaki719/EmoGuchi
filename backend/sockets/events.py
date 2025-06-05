@@ -126,10 +126,9 @@ class GameSocketEvents:
                     }, room=sid)
                     return
                 
-                # TODO: Generate phrase and emotion with LLM
-                # For now, use dummy data
-                phrase = "今日はとても良い天気ですね。"
-                emotion_id = "joy"
+                # Generate phrase and emotion with LLM
+                from services.llm_service import llm_service
+                phrase, emotion_id = await llm_service.generate_phrase_with_emotion(room.config.mode.value)
                 
                 # Get current speaker
                 speaker = room.get_current_speaker()
