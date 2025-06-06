@@ -47,7 +47,8 @@ async def create_room(request: CreateRoomRequest):
         room_config = RoomConfig(
             mode=request.mode,
             vote_type=request.vote_type,
-            speaker_order=request.speaker_order
+            speaker_order=request.speaker_order,
+            max_rounds=request.max_rounds
         )
         
         # Handle custom room ID

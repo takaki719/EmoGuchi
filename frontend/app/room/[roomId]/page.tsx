@@ -85,12 +85,28 @@ export default function RoomPage({ params }: { params: { roomId: string } }) {
     }
   };
 
-  const emotionChoices = [
-    { id: 'joy', name: '喜び' },
-    { id: 'anger', name: '怒り' },
-    { id: 'sadness', name: '悲しみ' },
-    { id: 'surprise', name: '驚き' },
-  ];
+  const getEmotionChoices = () => {
+    const basicChoices = [
+      { id: 'joy', name: '喜び' },
+      { id: 'anger', name: '怒り' },
+      { id: 'sadness', name: '悲しみ' },
+      { id: 'surprise', name: '驚き' },
+    ];
+
+    if (roomState?.config?.vote_type === '8choice') {
+      return [
+        ...basicChoices,
+        { id: 'fear', name: '恐れ' },
+        { id: 'disgust', name: '嫌悪' },
+        { id: 'trust', name: '信頼' },
+        { id: 'anticipation', name: '期待' },
+      ];
+    }
+
+    return basicChoices;
+  };
+
+  const emotionChoices = getEmotionChoices();
 
   const isCurrentSpeaker = currentRound?.speaker_name === playerName;
 
@@ -275,16 +291,6 @@ export default function RoomPage({ params }: { params: { roomId: string } }) {
                 <div className="text-center">
                   <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
                   <p>ラウンドデータを読み込み中...</p>
-                </div>
-              )}
-
-              {currentRound && isCurrentSpeaker && speakerEmotion && (
-                <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
-                  <h3 className="font-semibold text-yellow-800 mb-2">あなたの演技する感情:</h3>
-                  <p className="text-yellow-700">{speakerEmotion}</p>
-                  <p className="text-sm text-yellow-600 mt-2">
-                    この感情で上のセリフを読み上げてください
-                  </p>
                 </div>
               )}
 

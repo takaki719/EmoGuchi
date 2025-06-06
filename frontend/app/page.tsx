@@ -7,6 +7,10 @@ export default function Home() {
   const [playerName, setPlayerName] = useState('');
   const [customRoomId, setCustomRoomId] = useState('');
   const [isCreating, setIsCreating] = useState(false);
+  const [showAdvancedSettings, setShowAdvancedSettings] = useState(false);
+  const [gameMode, setGameMode] = useState<'basic' | 'advanced'>('basic');
+  const [maxRounds, setMaxRounds] = useState(3);
+  const [speakerOrder, setSpeakerOrder] = useState<'sequential' | 'random'>('sequential');
   const router = useRouter();
 
   const createRoom = async () => {
@@ -118,7 +122,7 @@ export default function Home() {
 
           {/* Footer */}
           <div className="mt-8 text-center text-sm text-gray-500">
-            <p>感情を演技で表現し、みんなで推理するゲームです</p>
+            <p>スピーカーは指定された感情とセリフで演技し、<br/>リスナーは感情を推理するゲームです</p>
           </div>
         </div>
       </div>

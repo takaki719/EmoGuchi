@@ -2,7 +2,7 @@ import openai
 from typing import List, Tuple
 import random
 from config import settings
-from models.emotion import BasicEmotion, AdvancedEmotion, BASIC_EMOTIONS, ADVANCED_EMOTIONS
+# Emotion mappings are now handled directly in this service
 
 class LLMService:
     def __init__(self):
@@ -23,27 +23,36 @@ class LLMService:
             "この映画は感動的でした。"
         ]
     
-    async def generate_phrase_with_emotion(self, mode: str = "basic") -> Tuple[str, str]:
-        """Generate a phrase and select an emotion"""
+    async def generate_phrase_with_emotion(self, mode: str = "basic", vote_type: str = "4choice") -> Tuple[str, str]:
+        """Generate a phrase and select an emotion from voting choices"""
         try:
-            # Select random emotion
-            if mode == "basic":
-                emotion_key = random.choice(list(BasicEmotion))
-                emotion_info = BASIC_EMOTIONS[emotion_key]
-            else:
-                emotion_key = random.choice(list(AdvancedEmotion))
-                emotion_info = ADVANCED_EMOTIONS.get(emotion_key)
-                if not emotion_info:
-                    # Fallback to basic emotion
-                    emotion_key = random.choice(list(BasicEmotion))
-                    emotion_info = BASIC_EMOTIONS[emotion_key]
+            # Define the voting choices to match frontend
+            voting_choices = [
+                {'id': 'joy', 'name_ja': '喜び', 'name_en': 'Joy'},
+                {'id': 'anger', 'name_ja': '怒り', 'name_en': 'Anger'},
+                {'id': 'sadness', 'name_ja': '悲しみ', 'name_en': 'Sadness'},
+                {'id': 'surprise', 'name_ja': '驚き', 'name_en': 'Surprise'}
+            ]
             
-            emotion_id = emotion_info.id
-            emotion_name = emotion_info.name_ja
+            # Add more emotions for 8-choice mode
+            if vote_type == "8choice":
+                voting_choices.extend([
+                    {'id': 'fear', 'name_ja': '恐れ', 'name_en': 'Fear'},
+                    {'id': 'disgust', 'name_ja': '嫌悪', 'name_en': 'Disgust'},
+                    {'id': 'trust', 'name_ja': '信頼', 'name_en': 'Trust'},
+                    {'id': 'anticipation', 'name_ja': '期待', 'name_en': 'Anticipation'}
+                ])
+            
+            # Select random emotion from voting choices
+            selected_emotion = random.choice(voting_choices)
+            
+            emotion_id = selected_emotion['id']
+            emotion_name = selected_emotion['name_ja']
+            emotion_name_en = selected_emotion['name_en']
             
             # Generate phrase with LLM
             if settings.OPENAI_API_KEY:
-                phrase = await self._generate_phrase_with_openai(emotion_name, emotion_info.name_en)
+                phrase = await self._generate_phrase_with_openai(emotion_name, emotion_name_en)
             else:
                 phrase = random.choice(self.fallback_phrases)
             
@@ -51,10 +60,10 @@ class LLMService:
             
         except Exception as e:
             print(f"Error generating phrase: {e}")
-            # Fallback
+            # Fallback to basic emotions from voting choices
             phrase = random.choice(self.fallback_phrases)
-            emotion_key = random.choice(list(BasicEmotion))
-            emotion_id = emotion_key.value
+            fallback_emotions = ['joy', 'anger', 'sadness', 'surprise']
+            emotion_id = random.choice(fallback_emotions)
             return phrase, emotion_id
     
     async def _generate_phrase_with_openai(self, emotion_ja: str, emotion_en: str) -> str:

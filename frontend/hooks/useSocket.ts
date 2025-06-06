@@ -72,8 +72,16 @@ export const useSocket = () => {
       store.setLastResult(null);
     });
 
-    socket.on('speaker_emotion', (data) => {
-      store.setSpeakerEmotion(data.emotionId);
+    socket.on('speaker_emotion', (data: any) => {
+      // Only process if this player is the speaker (check by name or speakerId)
+      const currentRoomState = store.getState().roomState;
+      const playerName = store.getState().playerName;
+      
+      // Check if current player is the speaker
+      if (currentRoomState?.currentSpeaker === playerName) {
+        // Use emotionName if available, otherwise fallback to emotionId
+        store.setSpeakerEmotion(data.emotionName || data.emotionId);
+      }
     });
 
     socket.on('round_result', (data: RoundResult) => {
