@@ -218,6 +218,16 @@ class GameSocketEvents:
                         'emotionId': emotion_id
                     }, room=speaker_sid)
                 
+                # Send updated room state to all players to sync phase
+                player_names = [p.name for p in room.players.values()]
+                await self.sio.emit('room_state', {
+                    'roomId': room.id,
+                    'players': player_names,
+                    'phase': room.phase,
+                    'config': room.config.dict(),
+                    'currentSpeaker': speaker.name
+                }, room=room_id)
+                
                 logger.info(f"Round started in room {room_id}, speaker: {speaker.name}")
                 
             except Exception as e:

@@ -34,6 +34,13 @@ export default function RoomPage({ params }: { params: { roomId: string } }) {
     }
   }, [playerName, setPlayerName]);
 
+  // Reset starting state when round actually starts or phase changes
+  useEffect(() => {
+    if (currentRound || roomState?.phase === 'in_round') {
+      setIsStartingRound(false);
+    }
+  }, [currentRound, roomState?.phase]);
+
   useEffect(() => {
     if (isConnected && playerName && !roomState) {
       joinRoom(roomId, playerName);
@@ -224,14 +231,45 @@ export default function RoomPage({ params }: { params: { roomId: string } }) {
             <div className="space-y-6">
               {currentRound ? (
                 <>
-                  <div className="text-center">
-                    <h2 className="text-xl font-semibold mb-2">
-                      スピーカー: {currentRound.speaker_name}
-                    </h2>
-                    <div className="bg-gray-50 p-4 rounded-lg">
-                      <p className="text-lg">{currentRound.phrase}</p>
+                  {!isCurrentSpeaker ? (
+                    // リスナー向けの表示
+                    <div className="text-center">
+                      <h2 className="text-xl font-semibold mb-2">
+                        スピーカー: {currentRound.speaker_name}
+                      </h2>
+                      <div className="bg-gray-50 p-4 rounded-lg">
+                        <p className="text-lg">{currentRound.phrase}</p>
+                      </div>
+                      <p className="text-sm text-gray-600 mt-2">
+                        スピーカーが演技するのを聞いて、感情を推測してください
+                      </p>
                     </div>
-                  </div>
+                  ) : (
+                    // スピーカー向けの表示
+                    <div className="text-center">
+                      <h2 className="text-xl font-semibold mb-4 text-orange-700">
+                        🎭 あなたがスピーカーです
+                      </h2>
+                      <div className="bg-orange-50 border-2 border-orange-200 rounded-lg p-6">
+                        <h3 className="font-bold text-orange-800 mb-3 text-lg">演技してください:</h3>
+                        <div className="space-y-4">
+                          <div>
+                            <h4 className="font-semibold text-orange-700 mb-1">セリフ:</h4>
+                            <p className="text-xl font-medium text-orange-900 bg-white p-3 rounded border">{currentRound.phrase}</p>
+                          </div>
+                          {speakerEmotion && (
+                            <div>
+                              <h4 className="font-semibold text-orange-700 mb-1">感情:</h4>
+                              <p className="text-lg font-medium text-orange-900 bg-white p-3 rounded border">{speakerEmotion}</p>
+                            </div>
+                          )}
+                        </div>
+                        <p className="text-sm text-orange-700 mt-4 font-medium">
+                          この感情でセリフを読み上げてください。他の参加者があなたの感情を推測します。
+                        </p>
+                      </div>
+                    </div>
+                  )}
                 </>
               ) : (
                 <div className="text-center">
