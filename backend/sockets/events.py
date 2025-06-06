@@ -49,12 +49,24 @@ class GameSocketEvents:
                     }, room=sid)
                     return
                 
-                # Create player
-                player = Player(name=player_name)
-                if not room.players:  # First player becomes host
-                    player.is_host = True
+                # Check if player with same name already exists
+                existing_player = None
+                for p in room.players.values():
+                    if p.name == player_name:
+                        existing_player = p
+                        break
                 
-                room.players[player.id] = player
+                if existing_player:
+                    # Reconnect existing player
+                    player = existing_player
+                    player.is_connected = True
+                else:
+                    # Create new player
+                    player = Player(name=player_name)
+                    if not room.players:  # First player becomes host
+                        player.is_host = True
+                    room.players[player.id] = player
+                
                 await state_store.update_room(room)
                 
                 # Join socket room
@@ -66,13 +78,19 @@ class GameSocketEvents:
                     'room_id': room_id
                 })
                 
-                # Notify room about new player
-                await self.sio.emit('player_joined', {
-                    'playerName': player.name,
-                    'playerId': player.id
-                }, room=room_id)
+                # Notify room about player (only if it's a new player or reconnection)
+                if existing_player:
+                    await self.sio.emit('player_reconnected', {
+                        'playerName': player.name,
+                        'playerId': player.id
+                    }, room=room_id)
+                else:
+                    await self.sio.emit('player_joined', {
+                        'playerName': player.name,
+                        'playerId': player.id
+                    }, room=room_id)
                 
-                # Send room state to new player
+                # Send updated room state to ALL players in the room
                 player_names = [p.name for p in room.players.values()]
                 current_speaker = None
                 if room.current_round and room.phase == 'in_round':
@@ -86,7 +104,7 @@ class GameSocketEvents:
                     'phase': room.phase,
                     'config': room.config.dict(),
                     'currentSpeaker': current_speaker
-                }, room=sid)
+                }, room=room_id)  # Send to all players in room, not just new player
                 
                 logger.info(f"Player {player_name} joined room {room_id}")
                 
@@ -129,9 +147,10 @@ class GameSocketEvents:
                     return
                 
                 if room.phase != GamePhase.WAITING:
+                    logger.warning(f"Room {room_id} is in phase {room.phase}, not WAITING. Refusing to start round.")
                     await self.sio.emit('error', {
                         'code': 'EMO-409',
-                        'message': 'Room is not in waiting phase'
+                        'message': f'Room is not in waiting phase (current: {room.phase})'
                     }, room=sid)
                     return
                 

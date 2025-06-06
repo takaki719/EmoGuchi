@@ -41,6 +41,11 @@ export const useSocket = () => {
       // Room state will be updated via room_state event
     });
 
+    socket.on('player_reconnected', (data) => {
+      console.log(`${data.playerName} reconnected to the room`);
+      // Room state will be updated via room_state event
+    });
+
     socket.on('player_disconnected', (data) => {
       console.log(`${data.playerName} disconnected`);
     });
@@ -79,6 +84,7 @@ export const useSocket = () => {
       socket.off('connected');
       socket.off('room_state');
       socket.off('player_joined');
+      socket.off('player_reconnected');
       socket.off('player_disconnected');
       socket.off('round_start');
       socket.off('speaker_emotion');
