@@ -132,7 +132,7 @@ export default function RoomPage({ params }: { params: { roomId: string } }) {
             <div>
               <h1 className="text-2xl font-bold text-gray-800">🎭 EMOGUCHI</h1>
               <div className="flex items-center gap-2">
-                <span className="text-gray-600">ルームID: {roomId}</span>
+                <span className="text-gray-600">合言葉: {roomId}</span>
                 <button
                   onClick={handleCopyRoomId}
                   className={`px-2 py-1 text-xs rounded transition-colors ${
@@ -140,7 +140,7 @@ export default function RoomPage({ params }: { params: { roomId: string } }) {
                       ? 'bg-green-100 text-green-700'
                       : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
                   }`}
-                  title="ルームIDをコピー"
+                  title="合言葉をコピー"
                 >
                   {copySuccess ? '✓ コピー済み' : '📋 コピー'}
                 </button>
