@@ -202,7 +202,7 @@ export default function RoomPage({ params }: { params: { roomId: string } }) {
                 className={`p-3 rounded-lg border-2 ${
                   player === playerName
                     ? 'border-blue-500 bg-blue-50'
-                    : player === roomState.current_speaker
+                    : player === roomState.currentSpeaker
                     ? 'border-green-500 bg-green-50'
                     : 'border-gray-200 bg-gray-50'
                 }`}

@@ -8,6 +8,7 @@ export interface RoomConfig {
   vote_type: VoteType;
   speaker_order: SpeakerOrder;
   vote_timeout: number;
+  max_rounds: number;
 }
 
 export interface Player {
@@ -61,14 +62,18 @@ export interface SocketEvents {
   join_room: (data: { roomId: string; playerName: string }) => void;
   start_round: (data: {}) => void;
   submit_vote: (data: { roundId: string; emotionId: string }) => void;
+  leave_room: (data: {}) => void;
 
   // Server to Client
   connected: (data: { message: string }) => void;
   player_joined: (data: { playerName: string; playerId: string }) => void;
+  player_reconnected: (data: { playerName: string; playerId: string }) => void;
+  player_left: (data: { playerName: string; playerId: string }) => void;
+  left_room: (data: { message: string }) => void;
   player_disconnected: (data: { playerName: string; playerId: string }) => void;
   room_state: (data: RoomState) => void;
   round_start: (data: { roundId: string; phrase: string; speakerName: string }) => void;
-  speaker_emotion: (data: { roundId: string; emotionId: string }) => void;
+  speaker_emotion: (data: { roundId: string; emotionId: string; emotionName?: string }) => void;
   round_result: (data: RoundResult) => void;
   error: (data: { code: string; message: string }) => void;
 }

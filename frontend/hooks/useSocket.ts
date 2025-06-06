@@ -73,15 +73,10 @@ export const useSocket = () => {
     });
 
     socket.on('speaker_emotion', (data: any) => {
-      // Only process if this player is the speaker (check by name or speakerId)
-      const currentRoomState = store.getState().roomState;
-      const playerName = store.getState().playerName;
-      
-      // Check if current player is the speaker
-      if (currentRoomState?.currentSpeaker === playerName) {
-        // Use emotionName if available, otherwise fallback to emotionId
-        store.setSpeakerEmotion(data.emotionName || data.emotionId);
-      }
+      console.log('Received speaker_emotion event:', data);
+      // Always set the speaker emotion, as the backend already filters who should receive it
+      // Use emotionName if available, otherwise fallback to emotionId
+      store.setSpeakerEmotion(data.emotionName || data.emotionId);
     });
 
     socket.on('round_result', (data: RoundResult) => {
@@ -111,7 +106,7 @@ export const useSocket = () => {
       socket.off('round_result');
       socket.off('error');
     };
-  }, []); // 依存配列を空にして無限ループを防ぐ
+  }, []); // Keep empty dependency array to avoid reconnection loops
 
   const joinRoom = useCallback((roomId: string, playerName: string) => {
     const socket = socketClient.getSocket();
