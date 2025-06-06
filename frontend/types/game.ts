@@ -49,6 +49,18 @@ export interface RoundResult {
   speaker_name: string;
   scores: { [playerName: string]: number };
   votes: { [playerName: string]: string };
+  isGameComplete?: boolean;
+  completedRounds?: number;
+  maxRounds?: number;
+}
+
+export interface GameComplete {
+  rankings: Array<{
+    name: string;
+    score: number;
+    rank: number;
+  }>;
+  totalRounds: number;
 }
 
 export interface EmotionChoice {
@@ -63,6 +75,7 @@ export interface SocketEvents {
   start_round: (data: {}) => void;
   submit_vote: (data: { roundId: string; emotionId: string }) => void;
   leave_room: (data: {}) => void;
+  restart_game: (data: {}) => void;
 
   // Server to Client
   connected: (data: { message: string }) => void;
@@ -75,5 +88,6 @@ export interface SocketEvents {
   round_start: (data: { roundId: string; phrase: string; speakerName: string; votingChoices?: EmotionChoice[] }) => void;
   speaker_emotion: (data: { roundId: string; emotionId: string; emotionName?: string }) => void;
   round_result: (data: RoundResult) => void;
+  game_complete: (data: GameComplete) => void;
   error: (data: { code: string; message: string }) => void;
 }

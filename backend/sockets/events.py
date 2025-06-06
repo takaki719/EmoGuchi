@@ -378,6 +378,68 @@ class GameSocketEvents:
                 }, room=sid)
 
         @self.sio.event
+        async def restart_game(sid, data):
+            """Restart the game (host only)"""
+            try:
+                session = await self.sio.get_session(sid)
+                room_id = session.get('room_id')
+                player_id = session.get('player_id')
+                
+                if not room_id or not player_id:
+                    await self.sio.emit('error', {
+                        'code': 'EMO-401',
+                        'message': 'Not authenticated'
+                    }, room=sid)
+                    return
+                
+                room = await state_store.get_room(room_id)
+                if not room:
+                    await self.sio.emit('error', {
+                        'code': 'EMO-404',
+                        'message': 'Room not found'
+                    }, room=sid)
+                    return
+                
+                player = room.players.get(player_id)
+                if not player or not player.is_host:
+                    await self.sio.emit('error', {
+                        'code': 'EMO-403',
+                        'message': 'Only host can restart the game'
+                    }, room=sid)
+                    return
+                
+                # Reset game state
+                room.phase = GamePhase.WAITING
+                room.current_round = None
+                room.round_history = []
+                room.current_speaker_index = 0
+                
+                # Reset all player scores
+                for player in room.players.values():
+                    player.score = 0
+                
+                await state_store.update_room(room)
+                
+                # Send updated room state to all players
+                player_names = [p.name for p in room.players.values()]
+                await self.sio.emit('room_state', {
+                    'roomId': room.id,
+                    'players': player_names,
+                    'phase': room.phase,
+                    'config': room.config.dict(),
+                    'currentSpeaker': None
+                }, room=room_id)
+                
+                logger.info(f"Game restarted in room {room_id}")
+                
+            except Exception as e:
+                logger.error(f"Error in restart_game: {e}", exc_info=True)
+                await self.sio.emit('error', {
+                    'code': 'EMO-500',
+                    'message': f'Internal server error: {str(e)}'
+                }, room=sid)
+
+        @self.sio.event
         async def submit_vote(sid, data):
             """Submit vote for current round"""
             try:
@@ -518,16 +580,45 @@ class GameSocketEvents:
                         correct_emotion_name = emotion_info.name_ja
                         break
             
+            # Check if game should end (reached max rounds)
+            completed_rounds = len(room.round_history)
+            is_game_complete = completed_rounds >= room.config.max_rounds
+            
             await self.sio.emit('round_result', {
                 'roundId': round_data.id,
                 'correctEmotion': correct_emotion_name,
                 'speakerName': speaker.name,
                 'scores': scores,
-                'votes': {room.players[pid].name: emotion for pid, emotion in round_data.votes.items()}
+                'votes': {room.players[pid].name: emotion for pid, emotion in round_data.votes.items()},
+                'isGameComplete': is_game_complete,
+                'completedRounds': completed_rounds,
+                'maxRounds': room.config.max_rounds
             }, room=room.id)
             
-            # Transition back to waiting phase after result
-            room.phase = GamePhase.WAITING
+            # If game is complete, send final rankings
+            if is_game_complete:
+                # Create final rankings sorted by score
+                final_rankings = sorted(
+                    [{'name': player.name, 'score': player.score} for player in room.players.values()],
+                    key=lambda x: x['score'],
+                    reverse=True
+                )
+                
+                # Add rank numbers
+                for i, player_data in enumerate(final_rankings):
+                    player_data['rank'] = i + 1
+                
+                await self.sio.emit('game_complete', {
+                    'rankings': final_rankings,
+                    'totalRounds': completed_rounds
+                }, room=room.id)
+                
+                # Transition to a completed state briefly, then waiting
+                room.phase = GamePhase.CLOSED
+            else:
+                # Transition back to waiting phase after result
+                room.phase = GamePhase.WAITING
+            
             await state_store.update_room(room)
             
             # Send updated room state to all players to ensure UI is synchronized

@@ -12,16 +12,18 @@ export default function RoomPage({ params }: { params: { roomId: string } }) {
   
   const { roomId: encodedRoomId } = params;
   const roomId = decodeURIComponent(encodedRoomId);
-  const { joinRoom, startRound, submitVote, leaveRoom, isConnected } = useSocket();
+  const { joinRoom, startRound, submitVote, leaveRoom, restartGame, isConnected } = useSocket();
   const {
     roomState,
     currentRound,
     speakerEmotion,
     playerVote,
     lastResult,
+    gameComplete,
     error,
     setPlayerName,
-    setPlayerVote
+    setPlayerVote,
+    setGameComplete
   } = useGameStore();
 
   const [selectedEmotion, setSelectedEmotion] = useState('');
@@ -535,7 +537,7 @@ export default function RoomPage({ params }: { params: { roomId: string } }) {
                 </div>
               </div>
 
-              {isHost && (
+              {isHost && !lastResult.isGameComplete && (
                 <button
                   onClick={handleStartRound}
                   disabled={isStartingRound}
@@ -547,6 +549,82 @@ export default function RoomPage({ params }: { params: { roomId: string } }) {
                 >
                   {isStartingRound ? '開始中...' : '次のラウンド'}
                 </button>
+              )}
+
+              {lastResult.isGameComplete && (
+                <div className="text-center bg-yellow-50 p-4 rounded-lg">
+                  <h3 className="text-lg font-semibold text-yellow-800 mb-2">
+                    🎉 ゲーム終了！
+                  </h3>
+                  <p className="text-yellow-700">
+                    {lastResult.completedRounds}/{lastResult.maxRounds}ラウンド完了
+                  </p>
+                </div>
+              )}
+            </div>
+          )}
+
+          {gameComplete && (
+            <div className="space-y-6">
+              <h2 className="text-2xl font-bold text-center text-gold">🏆 最終結果発表</h2>
+              
+              <div className="bg-gradient-to-br from-yellow-50 to-orange-50 p-6 rounded-lg border-2 border-yellow-200">
+                <h3 className="text-xl font-semibold mb-4 text-center">順位表</h3>
+                <div className="space-y-3">
+                  {gameComplete.rankings.map((player, index) => (
+                    <div key={player.name} className={`flex items-center justify-between p-4 rounded-lg ${
+                      index === 0 ? 'bg-yellow-100 border-2 border-yellow-400' :
+                      index === 1 ? 'bg-gray-100 border-2 border-gray-400' :
+                      index === 2 ? 'bg-orange-100 border-2 border-orange-400' :
+                      'bg-white border border-gray-200'
+                    }`}>
+                      <div className="flex items-center gap-3">
+                        <span className={`text-2xl font-bold ${
+                          index === 0 ? 'text-yellow-600' :
+                          index === 1 ? 'text-gray-600' :
+                          index === 2 ? 'text-orange-600' :
+                          'text-gray-500'
+                        }`}>
+                          {index === 0 ? '🥇' : index === 1 ? '🥈' : index === 2 ? '🥉' : `${player.rank}位`}
+                        </span>
+                        <span className={`font-semibold ${
+                          player.name === playerName ? 'text-blue-600' : 'text-gray-800'
+                        }`}>
+                          {player.name}
+                          {player.name === playerName && ' (あなた)'}
+                        </span>
+                      </div>
+                      <span className="text-xl font-bold text-gray-800">{player.score}pt</span>
+                    </div>
+                  ))}
+                </div>
+                
+                <div className="mt-6 text-center text-gray-600">
+                  <p>全{gameComplete.totalRounds}ラウンドお疲れ様でした！</p>
+                </div>
+              </div>
+
+              {isHost && (
+                <div className="space-y-3">
+                  <button
+                    onClick={() => {
+                      setGameComplete(null);
+                      restartGame();
+                    }}
+                    className="w-full bg-green-600 text-white py-3 rounded-lg hover:bg-green-700 font-medium"
+                  >
+                    🔄 もう一度プレイ
+                  </button>
+                  <p className="text-center text-sm text-gray-500">
+                    スコアをリセットして新しいゲームを開始します
+                  </p>
+                </div>
+              )}
+
+              {!isHost && (
+                <div className="text-center text-gray-600">
+                  <p>ホストが次のゲームを開始するのを待っています...</p>
+                </div>
               )}
             </div>
           )}

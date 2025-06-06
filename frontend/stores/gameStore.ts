@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import { RoomState, Round, RoundResult, Player } from '@/types/game';
+import { RoomState, Round, RoundResult, Player, GameComplete } from '@/types/game';
 
 interface GameStore {
   // Room state
@@ -13,6 +13,7 @@ interface GameStore {
   speakerEmotion: string | null; // For speaker only
   playerVote: string | null;
   lastResult: RoundResult | null;
+  gameComplete: GameComplete | null;
   
   // UI state
   isLoading: boolean;
@@ -27,6 +28,7 @@ interface GameStore {
   setSpeakerEmotion: (emotion: string | null) => void;
   setPlayerVote: (vote: string | null) => void;
   setLastResult: (result: RoundResult | null) => void;
+  setGameComplete: (gameComplete: GameComplete | null) => void;
   setLoading: (loading: boolean) => void;
   setError: (error: string | null) => void;
   reset: () => void;
@@ -42,6 +44,7 @@ export const useGameStore = create<GameStore>((set) => ({
   speakerEmotion: null,
   playerVote: null,
   lastResult: null,
+  gameComplete: null,
   isLoading: false,
   error: null,
   
@@ -54,6 +57,7 @@ export const useGameStore = create<GameStore>((set) => ({
   setSpeakerEmotion: (emotion) => set({ speakerEmotion: emotion }),
   setPlayerVote: (vote) => set({ playerVote: vote }),
   setLastResult: (result) => set({ lastResult: result }),
+  setGameComplete: (gameComplete) => set({ gameComplete }),
   setLoading: (loading) => set({ isLoading: loading }),
   setError: (error) => set({ error }),
   reset: () => set({
@@ -65,6 +69,7 @@ export const useGameStore = create<GameStore>((set) => ({
     speakerEmotion: null,
     playerVote: null,
     lastResult: null,
+    gameComplete: null,
     isLoading: false,
     error: null,
   }),

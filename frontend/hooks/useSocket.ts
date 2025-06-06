@@ -86,6 +86,10 @@ export const useSocket = () => {
       store.setSpeakerEmotion(null);
     });
 
+    socket.on('game_complete', (data) => {
+      store.setGameComplete(data);
+    });
+
     // Error handling
     socket.on('error', (data) => {
       store.setError(`${data.code}: ${data.message}`);
@@ -105,6 +109,7 @@ export const useSocket = () => {
       socket.off('round_start');
       socket.off('speaker_emotion');
       socket.off('round_result');
+      socket.off('game_complete');
       socket.off('error');
     };
   }, []); // Keep empty dependency array to avoid reconnection loops
@@ -137,12 +142,20 @@ export const useSocket = () => {
     }
   }, []);
 
+  const restartGame = useCallback(() => {
+    const socket = socketClient.getSocket();
+    if (socket) {
+      socket.emit('restart_game', {});
+    }
+  }, []);
+
   return {
     socket: socketClient.getSocket(),
     isConnected: socketClient.isConnected(),
     joinRoom,
     startRound,
     submitVote,
-    leaveRoom
+    leaveRoom,
+    restartGame
   };
 };
