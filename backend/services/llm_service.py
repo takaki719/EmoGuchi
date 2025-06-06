@@ -76,7 +76,7 @@ class LLMService:
 """
             
             response = await openai.ChatCompletion.acreate(
-                model="gpt-3.5-turbo",
+                model="gpt-4.1-mini",
                 messages=[
                     {"role": "system", "content": "あなたは日本語の台詞生成の専門家です。"},
                     {"role": "user", "content": prompt}
