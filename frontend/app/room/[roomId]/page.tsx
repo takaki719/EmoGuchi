@@ -10,7 +10,8 @@ export default function RoomPage({ params }: { params: { roomId: string } }) {
   const playerName = searchParams.get('name') || '';
   const isHost = searchParams.get('host') === 'true';
   
-  const { roomId } = params;
+  const { roomId: encodedRoomId } = params;
+  const roomId = decodeURIComponent(encodedRoomId);
   const { joinRoom, startRound, submitVote, leaveRoom, isConnected } = useSocket();
   const {
     roomState,
@@ -62,6 +63,8 @@ export default function RoomPage({ params }: { params: { roomId: string } }) {
       setTimeout(() => setCopySuccess(false), 2000);
     } catch (err) {
       console.error('Failed to copy room ID:', err);
+      // Fallback for browsers that don't support clipboard API
+      alert(`合言葉: ${roomId}`);
     }
   };
 

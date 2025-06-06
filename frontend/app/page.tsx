@@ -4,8 +4,6 @@ import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 
 export default function Home() {
-  const [activeTab, setActiveTab] = useState<'create' | 'join'>('create');
-  const [roomId, setRoomId] = useState('');
   const [playerName, setPlayerName] = useState('');
   const [customRoomId, setCustomRoomId] = useState('');
   const [isCreating, setIsCreating] = useState(false);
@@ -40,7 +38,7 @@ export default function Home() {
 
       const data = await response.json();
       localStorage.setItem('hostToken', data.hostToken);
-      router.push(`/room/${data.roomId}?name=${encodeURIComponent(playerName)}&host=true`);
+      router.push(`/room/${encodeURIComponent(data.roomId)}?name=${encodeURIComponent(playerName)}&host=true`);
     } catch (error: any) {
       console.error('Error creating room:', error);
       alert(`ルームの作成に失敗しました: ${error.message}`);
@@ -49,13 +47,6 @@ export default function Home() {
     }
   };
 
-  const joinRoom = () => {
-    if (!roomId.trim() || !playerName.trim()) {
-      alert('合言葉とプレイヤー名を入力してください');
-      return;
-    }
-    router.push(`/room/${roomId.trim()}?name=${encodeURIComponent(playerName)}`);
-  };
 
   return (
     <div className="min-h-screen flex items-center justify-center p-4 bg-gradient-to-br from-blue-50 to-purple-50">
@@ -83,95 +74,40 @@ export default function Home() {
             />
           </div>
 
-          {/* Tab Navigation */}
-          <div className="flex bg-gray-100 rounded-xl p-1 mb-6">
-            <button
-              onClick={() => setActiveTab('create')}
-              className={`flex-1 py-3 px-4 rounded-lg font-medium transition-all ${
-                activeTab === 'create'
-                  ? 'bg-white text-blue-600 shadow-sm'
-                  : 'text-gray-600 hover:text-gray-800'
-              }`}
-            >
-              ルームを作成
-            </button>
-            <button
-              onClick={() => setActiveTab('join')}
-              className={`flex-1 py-3 px-4 rounded-lg font-medium transition-all ${
-                activeTab === 'join'
-                  ? 'bg-white text-green-600 shadow-sm'
-                  : 'text-gray-600 hover:text-gray-800'
-              }`}
-            >
-              ルームに参加
-            </button>
+          {/* Room Input */}
+          <div className="mb-6">
+            <label htmlFor="customRoomId" className="block text-sm font-medium text-gray-700 mb-2">
+              合言葉（任意）
+            </label>
+            <input
+              type="text"
+              id="customRoomId"
+              value={customRoomId}
+              onChange={(e) => setCustomRoomId(e.target.value)}
+              className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
+              placeholder="例: やきにく123, 遊戯王..."
+              maxLength={20}
+            />
+            <p className="text-xs text-gray-500 mt-2">
+              空欄で新規作成、入力で既存ルームに参加
+            </p>
           </div>
-
-          {/* Create Room Tab */}
-          {activeTab === 'create' && (
-            <div className="space-y-4">
-              <div>
-                <label htmlFor="customRoomId" className="block text-sm font-medium text-gray-700 mb-2">
-                  合言葉（任意）
-                </label>
-                <input
-                  type="text"
-                  id="customRoomId"
-                  value={customRoomId}
-                  onChange={(e) => setCustomRoomId(e.target.value)}
-                  className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
-                  placeholder="例: やきにく123, 遊戯王..."
-                  maxLength={20}
-                />
-                <p className="text-xs text-gray-500 mt-2">
-                  空欄の場合は自動生成されます
-                </p>
+          
+          {/* Action Button */}
+          <button
+            onClick={createRoom}
+            disabled={!playerName.trim() || isCreating}
+            className="w-full bg-gradient-to-r from-blue-600 to-blue-700 text-white py-4 px-6 rounded-xl hover:from-blue-700 hover:to-blue-800 disabled:from-gray-400 disabled:to-gray-400 disabled:cursor-not-allowed transition-all font-medium text-lg shadow-lg"
+          >
+            {isCreating ? (
+              <div className="flex items-center justify-center">
+                <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white mr-2"></div>
+                {customRoomId.trim() ? '参加中...' : '作成中...'}
               </div>
-              
-              <button
-                onClick={createRoom}
-                disabled={!playerName.trim() || isCreating}
-                className="w-full bg-gradient-to-r from-blue-600 to-blue-700 text-white py-4 px-6 rounded-xl hover:from-blue-700 hover:to-blue-800 disabled:from-gray-400 disabled:to-gray-400 disabled:cursor-not-allowed transition-all font-medium text-lg shadow-lg"
-              >
-                {isCreating ? (
-                  <div className="flex items-center justify-center">
-                    <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white mr-2"></div>
-                    作成中...
-                  </div>
-                ) : (
-                  '🎮 ルームを作成'
-                )}
-              </button>
-            </div>
-          )}
-
-          {/* Join Room Tab */}
-          {activeTab === 'join' && (
-            <div className="space-y-4">
-              <div>
-                <label htmlFor="roomId" className="block text-sm font-medium text-gray-700 mb-2">
-                  合言葉
-                </label>
-                <input
-                  type="text"
-                  id="roomId"
-                  value={roomId}
-                  onChange={(e) => setRoomId(e.target.value)}
-                  className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent transition-all"
-                  placeholder="合言葉を入力"
-                  maxLength={20}
-                />
-              </div>
-              
-              <button
-                onClick={joinRoom}
-                disabled={!roomId.trim() || !playerName.trim()}
-                className="w-full bg-gradient-to-r from-green-600 to-green-700 text-white py-4 px-6 rounded-xl hover:from-green-700 hover:to-green-800 disabled:from-gray-400 disabled:to-gray-400 disabled:cursor-not-allowed transition-all font-medium text-lg shadow-lg"
-              >
-                🚪 ルームに参加
-              </button>
-            </div>
-          )}
+            ) : (
+              customRoomId.trim() ? '🚪 ルームに参加' : '🎮 ルームを作成'
+            )}
+          </button>
 
           {/* Footer */}
           <div className="mt-8 text-center text-sm text-gray-500">

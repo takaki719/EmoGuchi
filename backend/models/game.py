@@ -2,6 +2,7 @@ from pydantic import BaseModel, Field
 from typing import Dict, List, Optional, Literal
 from enum import Enum
 import uuid
+import random
 from datetime import datetime
 
 class GameMode(str, Enum):
@@ -21,6 +22,25 @@ class GamePhase(str, Enum):
     IN_ROUND = "in_round"
     RESULT = "result"
     CLOSED = "closed"
+
+def generate_room_id() -> str:
+    """Generate a user-friendly room ID using word combinations"""
+    adjectives = [
+        "赤い", "青い", "緑の", "黄色い", "白い", "黒い", "大きな", "小さな",
+        "明るい", "暗い", "速い", "遅い", "新しい", "古い", "強い", "弱い"
+    ]
+    
+    nouns = [
+        "わたる", "けいいち", "ひろひこ", "つかさ", "たかまさ", "こうせい", "けいた", "いっせい",
+        "けんたろう", "れん", "ともかず", "こうき", "あつや", "こうた", "しゅうへい", "ゆうじ","アンミンヒョン"
+    ]
+    
+    # Generate format: adjective-noun-number
+    adjective = random.choice(adjectives)
+    noun = random.choice(nouns)
+    number = random.randint(100, 999)
+    
+    return f"{adjective}{noun}{number}"
 
 class Player(BaseModel):
     id: str = Field(default_factory=lambda: str(uuid.uuid4()))
@@ -50,7 +70,7 @@ class Round(BaseModel):
     completed_at: Optional[datetime] = None
 
 class Room(BaseModel):
-    id: str = Field(default_factory=lambda: str(uuid.uuid4()))
+    id: str = Field(default_factory=generate_room_id)
     players: Dict[str, Player] = Field(default_factory=dict)
     config: RoomConfig = Field(default_factory=RoomConfig)
     phase: GamePhase = GamePhase.WAITING
@@ -81,10 +101,12 @@ class CreateRoomRequest(BaseModel):
     mode: GameMode = GameMode.BASIC
     vote_type: VoteType = VoteType.FOUR_CHOICE
     speaker_order: SpeakerOrder = SpeakerOrder.SEQUENTIAL
+    room_id: Optional[str] = None  # Custom room ID/passphrase
 
 class CreateRoomResponse(BaseModel):
     roomId: str
     hostToken: str
+    isExistingRoom: bool = False
 
 class JoinRoomRequest(BaseModel):
     room_id: str
