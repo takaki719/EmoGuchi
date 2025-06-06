@@ -69,7 +69,8 @@ async def create_room(request: CreateRoomRequest):
                 logger.info(f"Room {trimmed_room_id} already exists, returning existing room info")
                 return CreateRoomResponse(
                     roomId=existing_room.id,
-                    hostToken=existing_room.host_token
+                    hostToken=existing_room.host_token,
+                    isExistingRoom=True
                 )
             
             # Create room with custom ID

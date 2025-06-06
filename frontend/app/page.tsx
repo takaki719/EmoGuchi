@@ -37,8 +37,15 @@ export default function Home() {
       }
 
       const data = await response.json();
-      localStorage.setItem('hostToken', data.hostToken);
-      router.push(`/room/${encodeURIComponent(data.roomId)}?name=${encodeURIComponent(playerName)}&host=true`);
+      
+      // Only set host token and host flag for new rooms
+      if (!data.isExistingRoom) {
+        localStorage.setItem('hostToken', data.hostToken);
+        router.push(`/room/${encodeURIComponent(data.roomId)}?name=${encodeURIComponent(playerName)}&host=true`);
+      } else {
+        // For existing rooms, join as regular participant
+        router.push(`/room/${encodeURIComponent(data.roomId)}?name=${encodeURIComponent(playerName)}`);
+      }
     } catch (error: any) {
       console.error('Error creating room:', error);
       alert(`ルームの作成に失敗しました: ${error.message}`);
