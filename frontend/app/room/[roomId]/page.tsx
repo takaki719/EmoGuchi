@@ -24,6 +24,7 @@ export default function RoomPage({ params }: { params: { roomId: string } }) {
   } = useGameStore();
 
   const [selectedEmotion, setSelectedEmotion] = useState('');
+  const [copySuccess, setCopySuccess] = useState(false);
 
   useEffect(() => {
     if (playerName) {
@@ -46,6 +47,16 @@ export default function RoomPage({ params }: { params: { roomId: string } }) {
       submitVote(currentRound.id, selectedEmotion);
       setPlayerVote(selectedEmotion);
       setSelectedEmotion('');
+    }
+  };
+
+  const handleCopyRoomId = async () => {
+    try {
+      await navigator.clipboard.writeText(roomId);
+      setCopySuccess(true);
+      setTimeout(() => setCopySuccess(false), 2000);
+    } catch (err) {
+      console.error('Failed to copy room ID:', err);
     }
   };
 
@@ -105,7 +116,20 @@ export default function RoomPage({ params }: { params: { roomId: string } }) {
           <div className="flex justify-between items-center">
             <div>
               <h1 className="text-2xl font-bold text-gray-800">🎭 EMOGUCHI</h1>
-              <p className="text-gray-600">ルームID: {roomId}</p>
+              <div className="flex items-center gap-2">
+                <span className="text-gray-600">ルームID: {roomId}</span>
+                <button
+                  onClick={handleCopyRoomId}
+                  className={`px-2 py-1 text-xs rounded transition-colors ${
+                    copySuccess
+                      ? 'bg-green-100 text-green-700'
+                      : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                  }`}
+                  title="ルームIDをコピー"
+                >
+                  {copySuccess ? '✓ コピー済み' : '📋 コピー'}
+                </button>
+              </div>
             </div>
             <div className="text-right">
               <p className="text-sm text-gray-500">フェーズ</p>
