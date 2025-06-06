@@ -7,20 +7,16 @@ export default function Home() {
   const [playerName, setPlayerName] = useState('');
   const [customRoomId, setCustomRoomId] = useState('');
   const [isCreating, setIsCreating] = useState(false);
-  const [showAdvancedSettings, setShowAdvancedSettings] = useState(false);
-  const [gameMode, setGameMode] = useState<'basic' | 'advanced'>('basic');
-  const [maxRounds, setMaxRounds] = useState(3);
-  const [speakerOrder, setSpeakerOrder] = useState<'sequential' | 'random'>('sequential');
   const router = useRouter();
 
   const createRoom = async () => {
     setIsCreating(true);
     try {
       const requestBody: any = {
-        mode: gameMode,
-        vote_type: gameMode === 'advanced' ? '8choice' : '4choice',
-        speaker_order: speakerOrder,
-        max_rounds: maxRounds,
+        mode: 'basic',
+        vote_type: '4choice',
+        speaker_order: 'sequential',
+        max_rounds: 3,
       };
       
       // Add custom room ID if provided
@@ -105,103 +101,6 @@ export default function Home() {
             </p>
           </div>
 
-          {/* Advanced Settings Toggle */}
-          <div className="mb-6">
-            <button
-              type="button"
-              onClick={() => setShowAdvancedSettings(!showAdvancedSettings)}
-              className="w-full flex items-center justify-between px-4 py-3 border border-gray-300 rounded-xl hover:bg-gray-50 transition-all"
-            >
-              <span className="text-sm font-medium text-gray-700">詳細設定</span>
-              <span className={`transform transition-transform ${showAdvancedSettings ? 'rotate-180' : ''}`}>
-                ▼
-              </span>
-            </button>
-          </div>
-
-          {/* Advanced Settings Panel */}
-          {showAdvancedSettings && (
-            <div className="mb-6 p-4 border border-gray-200 rounded-xl bg-gray-50">
-              {/* Game Mode */}
-              <div className="mb-4">
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  感情モード
-                </label>
-                <div className="grid grid-cols-2 gap-2">
-                  <button
-                    type="button"
-                    onClick={() => setGameMode('basic')}
-                    className={`px-3 py-2 rounded-lg text-sm font-medium transition-all ${
-                      gameMode === 'basic'
-                        ? 'bg-blue-600 text-white'
-                        : 'bg-white border border-gray-300 text-gray-700 hover:bg-gray-50'
-                    }`}
-                  >
-                    基本感情 (4択)
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setGameMode('advanced')}
-                    className={`px-3 py-2 rounded-lg text-sm font-medium transition-all ${
-                      gameMode === 'advanced'
-                        ? 'bg-blue-600 text-white'
-                        : 'bg-white border border-gray-300 text-gray-700 hover:bg-gray-50'
-                    }`}
-                  >
-                    応用感情 (8択)
-                  </button>
-                </div>
-              </div>
-
-              {/* Max Rounds */}
-              <div className="mb-4">
-                <label htmlFor="maxRounds" className="block text-sm font-medium text-gray-700 mb-2">
-                  ラウンド数
-                </label>
-                <select
-                  id="maxRounds"
-                  value={maxRounds}
-                  onChange={(e) => setMaxRounds(Number(e.target.value))}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                >
-                  {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map(num => (
-                    <option key={num} value={num}>{num}周</option>
-                  ))}
-                </select>
-              </div>
-
-              {/* Speaker Order */}
-              <div className="mb-0">
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  発言順
-                </label>
-                <div className="grid grid-cols-2 gap-2">
-                  <button
-                    type="button"
-                    onClick={() => setSpeakerOrder('sequential')}
-                    className={`px-3 py-2 rounded-lg text-sm font-medium transition-all ${
-                      speakerOrder === 'sequential'
-                        ? 'bg-blue-600 text-white'
-                        : 'bg-white border border-gray-300 text-gray-700 hover:bg-gray-50'
-                    }`}
-                  >
-                    順番
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setSpeakerOrder('random')}
-                    className={`px-3 py-2 rounded-lg text-sm font-medium transition-all ${
-                      speakerOrder === 'random'
-                        ? 'bg-blue-600 text-white'
-                        : 'bg-white border border-gray-300 text-gray-700 hover:bg-gray-50'
-                    }`}
-                  >
-                    ランダム
-                  </button>
-                </div>
-              </div>
-            </div>
-          )}
           
           {/* Action Button */}
           <button
