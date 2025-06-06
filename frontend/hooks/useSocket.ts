@@ -34,6 +34,11 @@ export const useSocket = () => {
     // Room events
     socket.on('room_state', (data: RoomState) => {
       store.setRoomState(data);
+      // Clear game complete state and last result when returning to waiting phase
+      if (data.phase === 'waiting') {
+        store.setGameComplete(null);
+        store.setLastResult(null);
+      }
     });
 
     socket.on('player_joined', (data) => {
