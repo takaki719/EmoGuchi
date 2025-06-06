@@ -410,10 +410,10 @@ export default function RoomPage({ params }: { params: { roomId: string } }) {
                       className={`px-6 py-3 rounded-lg font-medium ${
                         roomState.players.length < 2 || isStartingRound
                           ? 'bg-gray-400 text-gray-600 cursor-not-allowed'
-                          : 'bg-blue-600 text-white hover:bg-blue-700'
+                          : 'bg-green-600 text-white hover:bg-green-700'
                       }`}
                     >
-                      {isStartingRound ? '開始中...' : roomState.players.length < 2 ? '2人以上必要' : 'ラウンド開始'}
+                      {isStartingRound ? '開始中...' : roomState.players.length < 2 ? '2人以上必要' : '🎮 ゲーム開始'}
                     </button>
                   </div>
                 )}
@@ -538,17 +538,22 @@ export default function RoomPage({ params }: { params: { roomId: string } }) {
               </div>
 
               {isHost && !lastResult.isGameComplete && (
-                <button
-                  onClick={handleStartRound}
-                  disabled={isStartingRound}
-                  className={`w-full py-3 rounded-lg font-medium ${
-                    isStartingRound
-                      ? 'bg-gray-400 text-gray-600 cursor-not-allowed'
-                      : 'bg-blue-600 text-white hover:bg-blue-700'
-                  }`}
-                >
-                  {isStartingRound ? '開始中...' : '次のラウンド'}
-                </button>
+                <div className="space-y-2">
+                  <div className="text-center text-sm text-gray-600 mb-2">
+                    ラウンド {(lastResult.completedRounds || 0) + 1}/{lastResult.maxRounds || roomState?.config?.max_rounds || 3}
+                  </div>
+                  <button
+                    onClick={handleStartRound}
+                    disabled={isStartingRound}
+                    className={`w-full py-3 rounded-lg font-medium ${
+                      isStartingRound
+                        ? 'bg-gray-400 text-gray-600 cursor-not-allowed'
+                        : 'bg-blue-600 text-white hover:bg-blue-700'
+                    }`}
+                  >
+                    {isStartingRound ? '準備中...' : '➡️ 次のラウンドへ'}
+                  </button>
+                </div>
               )}
 
               {lastResult.isGameComplete && (
