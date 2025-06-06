@@ -106,6 +106,21 @@ class GameSocketEvents:
                     'currentSpeaker': current_speaker
                 }, room=room_id)  # Send to all players in room, not just new player
                 
+                # If there's an active round, send round data to new player
+                if room.current_round and room.phase == 'in_round':
+                    await self.sio.emit('round_start', {
+                        'roundId': room.current_round.id,
+                        'phrase': room.current_round.phrase,
+                        'speakerName': speaker.name if speaker else 'Unknown'
+                    }, room=sid)
+                    
+                    # If the new player is the speaker, send them the emotion
+                    if room.current_round.speaker_id == player.id:
+                        await self.sio.emit('speaker_emotion', {
+                            'roundId': room.current_round.id,
+                            'emotionId': room.current_round.emotion_id
+                        }, room=sid)
+                
                 logger.info(f"Player {player_name} joined room {room_id}")
                 
             except Exception as e:
@@ -258,9 +273,18 @@ class GameSocketEvents:
                 await state_store.update_room(room)
                 
                 # Check if all listeners have voted
-                listener_count = len(room.players) - 1  # Exclude speaker
-                if len(room.current_round.votes) >= listener_count:
+                # Only count connected players (excluding speaker)
+                connected_players = [p for p in room.players.values() if p.is_connected]
+                listener_count = len(connected_players) - 1  # Exclude speaker
+                votes_received = len(room.current_round.votes)
+                
+                logger.info(f"Vote check: {votes_received}/{listener_count} votes received in room {room_id}")
+                
+                if votes_received >= listener_count and listener_count > 0:
+                    logger.info(f"All votes received, completing round in room {room_id}")
                     await self._complete_round(room)
+                else:
+                    logger.info(f"Waiting for more votes: {votes_received}/{listener_count} in room {room_id}")
                 
                 logger.info(f"Vote submitted by player {player_id} in room {room_id}")
                 
@@ -340,6 +364,16 @@ class GameSocketEvents:
             # Transition back to waiting phase after result
             room.phase = GamePhase.WAITING
             await state_store.update_room(room)
+            
+            # Send updated room state to all players to ensure UI is synchronized
+            player_names = [p.name for p in room.players.values()]
+            await self.sio.emit('room_state', {
+                'roomId': room.id,
+                'players': player_names,
+                'phase': room.phase,
+                'config': room.config.dict(),
+                'currentSpeaker': None
+            }, room=room.id)
             
             logger.info(f"Round completed in room {room.id}")
             

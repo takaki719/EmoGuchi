@@ -25,6 +25,7 @@ export default function RoomPage({ params }: { params: { roomId: string } }) {
 
   const [selectedEmotion, setSelectedEmotion] = useState('');
   const [copySuccess, setCopySuccess] = useState(false);
+  const [isStartingRound, setIsStartingRound] = useState(false);
 
   useEffect(() => {
     if (playerName) {
@@ -39,7 +40,11 @@ export default function RoomPage({ params }: { params: { roomId: string } }) {
   }, [isConnected, playerName, roomId, roomState, joinRoom]);
 
   const handleStartRound = () => {
+    if (isStartingRound) return; // Prevent double-click
+    setIsStartingRound(true);
     startRound();
+    // Reset after a delay to allow for server response
+    setTimeout(() => setIsStartingRound(false), 2000);
   };
 
   const handleVote = () => {
@@ -177,14 +182,14 @@ export default function RoomPage({ params }: { params: { roomId: string } }) {
               {isHost && (
                 <button
                   onClick={handleStartRound}
-                  disabled={roomState.players.length < 2}
+                  disabled={roomState.players.length < 2 || isStartingRound}
                   className={`px-6 py-3 rounded-lg font-medium ${
-                    roomState.players.length < 2
+                    roomState.players.length < 2 || isStartingRound
                       ? 'bg-gray-400 text-gray-600 cursor-not-allowed'
                       : 'bg-blue-600 text-white hover:bg-blue-700'
                   }`}
                 >
-                  {roomState.players.length < 2 ? '2人以上必要' : 'ラウンド開始'}
+                  {isStartingRound ? '開始中...' : roomState.players.length < 2 ? '2人以上必要' : 'ラウンド開始'}
                 </button>
               )}
               {!isHost && (
@@ -193,18 +198,27 @@ export default function RoomPage({ params }: { params: { roomId: string } }) {
             </div>
           )}
 
-          {roomState.phase === 'in_round' && currentRound && (
+          {roomState.phase === 'in_round' && (
             <div className="space-y-6">
-              <div className="text-center">
-                <h2 className="text-xl font-semibold mb-2">
-                  スピーカー: {currentRound.speaker_name}
-                </h2>
-                <div className="bg-gray-50 p-4 rounded-lg">
-                  <p className="text-lg">{currentRound.phrase}</p>
+              {currentRound ? (
+                <>
+                  <div className="text-center">
+                    <h2 className="text-xl font-semibold mb-2">
+                      スピーカー: {currentRound.speaker_name}
+                    </h2>
+                    <div className="bg-gray-50 p-4 rounded-lg">
+                      <p className="text-lg">{currentRound.phrase}</p>
+                    </div>
+                  </div>
+                </>
+              ) : (
+                <div className="text-center">
+                  <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
+                  <p>ラウンドデータを読み込み中...</p>
                 </div>
-              </div>
+              )}
 
-              {isCurrentSpeaker && speakerEmotion && (
+              {currentRound && isCurrentSpeaker && speakerEmotion && (
                 <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
                   <h3 className="font-semibold text-yellow-800 mb-2">あなたの演技する感情:</h3>
                   <p className="text-yellow-700">{speakerEmotion}</p>
@@ -214,7 +228,7 @@ export default function RoomPage({ params }: { params: { roomId: string } }) {
                 </div>
               )}
 
-              {!isCurrentSpeaker && !playerVote && (
+              {currentRound && !isCurrentSpeaker && !playerVote && (
                 <div className="space-y-4">
                   <h3 className="font-semibold">感情を推測してください:</h3>
                   <div className="grid grid-cols-2 gap-3">
@@ -242,7 +256,7 @@ export default function RoomPage({ params }: { params: { roomId: string } }) {
                 </div>
               )}
 
-              {!isCurrentSpeaker && playerVote && (
+              {currentRound && !isCurrentSpeaker && playerVote && (
                 <div className="text-center bg-green-50 p-4 rounded-lg">
                   <p className="text-green-800">投票完了！</p>
                   <p className="text-green-600">他のプレイヤーを待っています...</p>
@@ -278,9 +292,14 @@ export default function RoomPage({ params }: { params: { roomId: string } }) {
               {isHost && (
                 <button
                   onClick={handleStartRound}
-                  className="w-full bg-blue-600 text-white py-3 rounded-lg hover:bg-blue-700 font-medium"
+                  disabled={isStartingRound}
+                  className={`w-full py-3 rounded-lg font-medium ${
+                    isStartingRound
+                      ? 'bg-gray-400 text-gray-600 cursor-not-allowed'
+                      : 'bg-blue-600 text-white hover:bg-blue-700'
+                  }`}
                 >
-                  次のラウンド
+                  {isStartingRound ? '開始中...' : '次のラウンド'}
                 </button>
               )}
             </div>
