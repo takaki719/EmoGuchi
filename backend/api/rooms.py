@@ -127,6 +127,47 @@ async def delete_room(room_id: str, authorization: Optional[str] = Header(None))
     await state_store.delete_room(room_id)
     return {"ok": True}
 
+@router.put("/rooms/{room_id}/config")
+async def update_room_config(
+    room_id: str, 
+    request: CreateRoomRequest,
+    authorization: Optional[str] = Header(None)
+):
+    """Update room configuration (host only, waiting phase only)"""
+    await verify_host_token(room_id, authorization)
+    room = await state_store.get_room(room_id)
+    
+    if not room:
+        raise HTTPException(status_code=404, detail="Room not found")
+    
+    # Only allow config changes in waiting phase
+    if room.phase != GamePhase.WAITING:
+        raise HTTPException(status_code=400, detail="Can only change settings while waiting")
+    
+    # Update room configuration
+    room.config = RoomConfig(
+        mode=request.mode,
+        vote_type=request.vote_type,
+        speaker_order=request.speaker_order,
+        max_rounds=request.max_rounds,
+        vote_timeout=room.config.vote_timeout  # Keep existing timeout
+    )
+    
+    await state_store.update_room(room)
+    
+    # Notify all players about config change via socket
+    from main import sio
+    player_names = [p.name for p in room.players.values()]
+    await sio.emit('room_state', {
+        'roomId': room.id,
+        'players': player_names,
+        'phase': room.phase,
+        'config': room.config.dict(),
+        'currentSpeaker': None
+    }, room=room_id)
+    
+    return {"ok": True}
+
 @router.post("/rooms/{room_id}/prefetch")
 async def prefetch_phrases(
     room_id: str,

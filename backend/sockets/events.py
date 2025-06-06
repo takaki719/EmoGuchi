@@ -483,9 +483,24 @@ class GameSocketEvents:
             # Send results
             scores = {player.name: player.score for player in room.players.values()}
             
+            # Get emotion name for display
+            from models.emotion import BASIC_EMOTIONS, ADVANCED_EMOTIONS
+            correct_emotion_name = correct_emotion  # fallback
+            
+            # Try to find emotion name
+            for emotion_info in BASIC_EMOTIONS.values():
+                if emotion_info.id == correct_emotion:
+                    correct_emotion_name = emotion_info.name_ja
+                    break
+            else:
+                for emotion_info in ADVANCED_EMOTIONS.values():
+                    if emotion_info.id == correct_emotion:
+                        correct_emotion_name = emotion_info.name_ja
+                        break
+            
             await self.sio.emit('round_result', {
                 'roundId': round_data.id,
-                'correctEmotion': correct_emotion,
+                'correctEmotion': correct_emotion_name,
                 'speakerName': speaker.name,
                 'scores': scores,
                 'votes': {room.players[pid].name: emotion for pid, emotion in round_data.votes.items()}
