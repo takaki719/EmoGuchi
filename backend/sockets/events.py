@@ -135,9 +135,17 @@ class GameSocketEvents:
                     }, room=sid)
                     return
                 
+                # Check minimum player count (need at least 2 players: 1 speaker + 1 listener)
+                if len(room.players) < 2:
+                    await self.sio.emit('error', {
+                        'code': 'EMO-400',
+                        'message': 'Need at least 2 players to start the game'
+                    }, room=sid)
+                    return
+                
                 # Generate phrase and emotion with LLM
                 from services.llm_service import llm_service
-                phrase, emotion_id = await llm_service.generate_phrase_with_emotion(room.config.mode.value)
+                phrase, emotion_id = await llm_service.generate_phrase_with_emotion(room.config.mode)
                 
                 # Get current speaker
                 speaker = room.get_current_speaker()

@@ -153,9 +153,14 @@ export default function RoomPage({ params }: { params: { roomId: string } }) {
               {isHost && (
                 <button
                   onClick={handleStartRound}
-                  className="bg-blue-600 text-white px-6 py-3 rounded-lg hover:bg-blue-700 font-medium"
+                  disabled={roomState.players.length < 2}
+                  className={`px-6 py-3 rounded-lg font-medium ${
+                    roomState.players.length < 2
+                      ? 'bg-gray-400 text-gray-600 cursor-not-allowed'
+                      : 'bg-blue-600 text-white hover:bg-blue-700'
+                  }`}
                 >
-                  ラウンド開始
+                  {roomState.players.length < 2 ? '2人以上必要' : 'ラウンド開始'}
                 </button>
               )}
               {!isHost && (

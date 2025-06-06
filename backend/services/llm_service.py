@@ -53,7 +53,8 @@ class LLMService:
             print(f"Error generating phrase: {e}")
             # Fallback
             phrase = random.choice(self.fallback_phrases)
-            emotion_id = random.choice(list(BasicEmotion)).value
+            emotion_key = random.choice(list(BasicEmotion))
+            emotion_id = emotion_key.value
             return phrase, emotion_id
     
     async def _generate_phrase_with_openai(self, emotion_ja: str, emotion_en: str) -> str:

@@ -92,7 +92,7 @@ async def prefetch_phrases(
     from services.llm_service import llm_service
     
     # Generate phrases with LLM
-    phrase_data = await llm_service.generate_batch_phrases(batch_size, room.config.mode.value)
+    phrase_data = await llm_service.generate_batch_phrases(batch_size, room.config.mode)
     phrases = [phrase for phrase, _ in phrase_data]
     
     return {"phrases": phrases}
