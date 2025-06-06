@@ -40,6 +40,7 @@ export interface Round {
   phrase: string;
   emotion_id: string;
   speaker_name: string;
+  voting_choices?: EmotionChoice[];
 }
 
 export interface RoundResult {
@@ -52,8 +53,7 @@ export interface RoundResult {
 
 export interface EmotionChoice {
   id: string;
-  name_ja: string;
-  name_en: string;
+  name: string;
 }
 
 // Socket events
@@ -72,7 +72,7 @@ export interface SocketEvents {
   left_room: (data: { message: string }) => void;
   player_disconnected: (data: { playerName: string; playerId: string }) => void;
   room_state: (data: RoomState) => void;
-  round_start: (data: { roundId: string; phrase: string; speakerName: string }) => void;
+  round_start: (data: { roundId: string; phrase: string; speakerName: string; votingChoices?: EmotionChoice[] }) => void;
   speaker_emotion: (data: { roundId: string; emotionId: string; emotionName?: string }) => void;
   round_result: (data: RoundResult) => void;
   error: (data: { code: string; message: string }) => void;

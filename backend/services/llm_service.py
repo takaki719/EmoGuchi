@@ -24,27 +24,23 @@ class LLMService:
         ]
     
     async def generate_phrase_with_emotion(self, mode: str = "basic", vote_type: str = "4choice") -> Tuple[str, str]:
-        """Generate a phrase and select an emotion from voting choices"""
+        """Generate a phrase and select an emotion from available pool"""
         try:
-            # Define the voting choices to match frontend
-            voting_choices = [
-                {'id': 'joy', 'name_ja': '喜び', 'name_en': 'Joy'},
-                {'id': 'anger', 'name_ja': '怒り', 'name_en': 'Anger'},
-                {'id': 'sadness', 'name_ja': '悲しみ', 'name_en': 'Sadness'},
-                {'id': 'surprise', 'name_ja': '驚き', 'name_en': 'Surprise'}
-            ]
+            # Use the full emotion pool from emotion models for more variety
+            from models.emotion import get_emotions_for_mode
+            emotions_dict = get_emotions_for_mode(mode)
             
-            # Add more emotions for 8-choice mode
-            if vote_type == "8choice":
-                voting_choices.extend([
-                    {'id': 'fear', 'name_ja': '恐れ', 'name_en': 'Fear'},
-                    {'id': 'disgust', 'name_ja': '嫌悪', 'name_en': 'Disgust'},
-                    {'id': 'trust', 'name_ja': '信頼', 'name_en': 'Trust'},
-                    {'id': 'anticipation', 'name_ja': '期待', 'name_en': 'Anticipation'}
-                ])
+            # Convert to list for random selection
+            available_emotions = []
+            for emotion_info in emotions_dict.values():
+                available_emotions.append({
+                    'id': emotion_info.id,
+                    'name_ja': emotion_info.name_ja,
+                    'name_en': emotion_info.name_en
+                })
             
-            # Select random emotion from voting choices
-            selected_emotion = random.choice(voting_choices)
+            # Select random emotion from the full pool
+            selected_emotion = random.choice(available_emotions)
             
             emotion_id = selected_emotion['id']
             emotion_name = selected_emotion['name_ja']
@@ -60,9 +56,9 @@ class LLMService:
             
         except Exception as e:
             print(f"Error generating phrase: {e}")
-            # Fallback to basic emotions from voting choices
+            # Fallback to basic emotions
             phrase = random.choice(self.fallback_phrases)
-            fallback_emotions = ['joy', 'anger', 'sadness', 'surprise']
+            fallback_emotions = ['joy', 'anger', 'sadness', 'surprise', 'fear', 'disgust', 'trust', 'anticipation']
             emotion_id = random.choice(fallback_emotions)
             return phrase, emotion_id
     

@@ -27,6 +27,10 @@ export default function RoomPage({ params }: { params: { roomId: string } }) {
   const [selectedEmotion, setSelectedEmotion] = useState('');
   const [copySuccess, setCopySuccess] = useState(false);
   const [isStartingRound, setIsStartingRound] = useState(false);
+  const [showSettings, setShowSettings] = useState(false);
+  const [gameMode, setGameMode] = useState<'basic' | 'advanced'>('basic');
+  const [maxRounds, setMaxRounds] = useState(3);
+  const [speakerOrder, setSpeakerOrder] = useState<'sequential' | 'random'>('sequential');
 
   useEffect(() => {
     if (playerName) {
@@ -46,6 +50,15 @@ export default function RoomPage({ params }: { params: { roomId: string } }) {
       joinRoom(roomId, playerName);
     }
   }, [isConnected, playerName, roomId, roomState, joinRoom]);
+
+  // Update local state when room state changes
+  useEffect(() => {
+    if (roomState?.config) {
+      setGameMode(roomState.config.mode);
+      setMaxRounds(roomState.config.max_rounds);
+      setSpeakerOrder(roomState.config.speaker_order);
+    }
+  }, [roomState?.config]);
 
   const handleStartRound = () => {
     if (isStartingRound) return; // Prevent double-click
@@ -85,28 +98,65 @@ export default function RoomPage({ params }: { params: { roomId: string } }) {
     }
   };
 
-  const getEmotionChoices = () => {
-    const basicChoices = [
-      { id: 'joy', name: '喜び' },
-      { id: 'anger', name: '怒り' },
-      { id: 'sadness', name: '悲しみ' },
-      { id: 'surprise', name: '驚き' },
-    ];
+  const handleUpdateSettings = async () => {
+    try {
+      const hostToken = localStorage.getItem('hostToken');
+      if (!hostToken) {
+        alert('ホスト権限がありません');
+        return;
+      }
 
-    if (roomState?.config?.vote_type === '8choice') {
-      return [
-        ...basicChoices,
-        { id: 'fear', name: '恐れ' },
-        { id: 'disgust', name: '嫌悪' },
-        { id: 'trust', name: '信頼' },
-        { id: 'anticipation', name: '期待' },
-      ];
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8002'}/api/v1/rooms/${encodeURIComponent(roomId)}/config`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${hostToken}`
+        },
+        body: JSON.stringify({
+          mode: gameMode,
+          vote_type: gameMode === 'advanced' ? '8choice' : '4choice',
+          speaker_order: speakerOrder,
+          max_rounds: maxRounds
+        }),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({ detail: 'Failed to update settings' }));
+        throw new Error(errorData.detail || 'Failed to update settings');
+      }
+
+      setShowSettings(false);
+      alert('設定を更新しました');
+    } catch (error: any) {
+      console.error('Error updating settings:', error);
+      alert(`設定の更新に失敗しました: ${error.message}`);
     }
-
-    return basicChoices;
   };
 
-  const emotionChoices = getEmotionChoices();
+  // Use dynamic voting choices from the current round, or fall back to static choices
+  const emotionChoices = currentRound?.voting_choices && currentRound.voting_choices.length > 0 
+    ? currentRound.voting_choices 
+    : (() => {
+        // Fallback static choices
+        const basicChoices = [
+          { id: 'joy', name: '喜び' },
+          { id: 'anger', name: '怒り' },
+          { id: 'sadness', name: '悲しみ' },
+          { id: 'surprise', name: '驚き' },
+        ];
+
+        if (roomState?.config?.vote_type === '8choice') {
+          return [
+            ...basicChoices,
+            { id: 'fear', name: '恐れ' },
+            { id: 'disgust', name: '嫌悪' },
+            { id: 'trust', name: '信頼' },
+            { id: 'anticipation', name: '期待' },
+          ];
+        }
+
+        return basicChoices;
+      })();
 
   const isCurrentSpeaker = currentRound?.speaker_name === playerName;
 
@@ -222,24 +272,154 @@ export default function RoomPage({ params }: { params: { roomId: string } }) {
         {/* Game Area */}
         <div className="bg-white rounded-lg shadow-md p-6">
           {roomState.phase === 'waiting' && (
-            <div className="text-center">
-              <h2 className="text-xl font-semibold mb-4">ゲーム開始を待っています</h2>
-              {isHost && (
-                <button
-                  onClick={handleStartRound}
-                  disabled={roomState.players.length < 2 || isStartingRound}
-                  className={`px-6 py-3 rounded-lg font-medium ${
-                    roomState.players.length < 2 || isStartingRound
-                      ? 'bg-gray-400 text-gray-600 cursor-not-allowed'
-                      : 'bg-blue-600 text-white hover:bg-blue-700'
-                  }`}
-                >
-                  {isStartingRound ? '開始中...' : roomState.players.length < 2 ? '2人以上必要' : 'ラウンド開始'}
-                </button>
-              )}
-              {!isHost && (
-                <p className="text-gray-600">ホストがゲームを開始するのを待っています...</p>
-              )}
+            <div className="space-y-6">
+              <div className="text-center">
+                <h2 className="text-xl font-semibold mb-4">ゲーム開始を待っています</h2>
+                
+                {/* Current Settings Display */}
+                <div className="bg-gray-50 p-4 rounded-lg mb-4">
+                  <h3 className="font-semibold mb-2">現在の設定</h3>
+                  <div className="grid grid-cols-2 gap-4 text-sm">
+                    <div>
+                      <span className="text-gray-600">感情モード:</span>
+                      <span className="ml-2">{roomState.config.mode === 'basic' ? '基本感情 (4択)' : '応用感情 (8択)'}</span>
+                    </div>
+                    <div>
+                      <span className="text-gray-600">ラウンド数:</span>
+                      <span className="ml-2">{roomState.config.max_rounds}周</span>
+                    </div>
+                    <div>
+                      <span className="text-gray-600">発言順:</span>
+                      <span className="ml-2">{roomState.config.speaker_order === 'sequential' ? '順番' : 'ランダム'}</span>
+                    </div>
+                  </div>
+                </div>
+
+                {isHost && (
+                  <div className="space-y-3">
+                    <button
+                      onClick={() => setShowSettings(!showSettings)}
+                      className="px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors"
+                    >
+                      ⚙️ 設定変更
+                    </button>
+                    
+                    {showSettings && (
+                      <div className="bg-gray-50 border border-gray-200 rounded-lg p-4 text-left">
+                        {/* Game Mode */}
+                        <div className="mb-4">
+                          <label className="block text-sm font-medium text-gray-700 mb-2">
+                            感情モード
+                          </label>
+                          <div className="grid grid-cols-2 gap-2">
+                            <button
+                              type="button"
+                              onClick={() => setGameMode('basic')}
+                              className={`px-3 py-2 rounded-lg text-sm font-medium transition-all ${
+                                gameMode === 'basic'
+                                  ? 'bg-blue-600 text-white'
+                                  : 'bg-white border border-gray-300 text-gray-700 hover:bg-gray-50'
+                              }`}
+                            >
+                              基本感情 (4択)
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => setGameMode('advanced')}
+                              className={`px-3 py-2 rounded-lg text-sm font-medium transition-all ${
+                                gameMode === 'advanced'
+                                  ? 'bg-blue-600 text-white'
+                                  : 'bg-white border border-gray-300 text-gray-700 hover:bg-gray-50'
+                              }`}
+                            >
+                              応用感情 (8択)
+                            </button>
+                          </div>
+                        </div>
+
+                        {/* Max Rounds */}
+                        <div className="mb-4">
+                          <label htmlFor="maxRounds" className="block text-sm font-medium text-gray-700 mb-2">
+                            ラウンド数
+                          </label>
+                          <select
+                            id="maxRounds"
+                            value={maxRounds}
+                            onChange={(e) => setMaxRounds(Number(e.target.value))}
+                            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                          >
+                            {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map(num => (
+                              <option key={num} value={num}>{num}周</option>
+                            ))}
+                          </select>
+                        </div>
+
+                        {/* Speaker Order */}
+                        <div className="mb-4">
+                          <label className="block text-sm font-medium text-gray-700 mb-2">
+                            発言順
+                          </label>
+                          <div className="grid grid-cols-2 gap-2">
+                            <button
+                              type="button"
+                              onClick={() => setSpeakerOrder('sequential')}
+                              className={`px-3 py-2 rounded-lg text-sm font-medium transition-all ${
+                                speakerOrder === 'sequential'
+                                  ? 'bg-blue-600 text-white'
+                                  : 'bg-white border border-gray-300 text-gray-700 hover:bg-gray-50'
+                              }`}
+                            >
+                              順番
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => setSpeakerOrder('random')}
+                              className={`px-3 py-2 rounded-lg text-sm font-medium transition-all ${
+                                speakerOrder === 'random'
+                                  ? 'bg-blue-600 text-white'
+                                  : 'bg-white border border-gray-300 text-gray-700 hover:bg-gray-50'
+                              }`}
+                            >
+                              ランダム
+                            </button>
+                          </div>
+                        </div>
+
+                        <div className="flex gap-2">
+                          <button
+                            onClick={handleUpdateSettings}
+                            className="flex-1 bg-green-600 text-white py-2 px-4 rounded-lg hover:bg-green-700 transition-colors"
+                          >
+                            設定を保存
+                          </button>
+                          <button
+                            onClick={() => setShowSettings(false)}
+                            className="flex-1 bg-gray-400 text-white py-2 px-4 rounded-lg hover:bg-gray-500 transition-colors"
+                          >
+                            キャンセル
+                          </button>
+                        </div>
+                      </div>
+                    )}
+                    
+                    <button
+                      onClick={handleStartRound}
+                      disabled={roomState.players.length < 2 || isStartingRound}
+                      className={`px-6 py-3 rounded-lg font-medium ${
+                        roomState.players.length < 2 || isStartingRound
+                          ? 'bg-gray-400 text-gray-600 cursor-not-allowed'
+                          : 'bg-blue-600 text-white hover:bg-blue-700'
+                      }`}
+                    >
+                      {isStartingRound ? '開始中...' : roomState.players.length < 2 ? '2人以上必要' : 'ラウンド開始'}
+                    </button>
+                  </div>
+                )}
+                
+                {!isHost && (
+                  <p className="text-gray-600">ホストがゲームを開始するのを待っています...</p>
+                )}
+              </div>
             </div>
           )}
 

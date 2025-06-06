@@ -108,10 +108,20 @@ class GameSocketEvents:
                 
                 # If there's an active round, send round data to new player
                 if room.current_round and room.phase == 'in_round':
+                    # Generate voting choices for the active round
+                    from models.emotion import get_emotion_choices_for_voting
+                    if room.config.vote_type == "8choice":
+                        voting_choices = get_emotion_choices_for_voting(room.config.mode, room.current_round.emotion_id, 8)
+                    else:
+                        voting_choices = get_emotion_choices_for_voting(room.config.mode, room.current_round.emotion_id, 4)
+                    
+                    choice_data = [{"id": choice.id, "name": choice.name_ja} for choice in voting_choices]
+                    
                     await self.sio.emit('round_start', {
                         'roundId': room.current_round.id,
                         'phrase': room.current_round.phrase,
-                        'speakerName': speaker.name if speaker else 'Unknown'
+                        'speakerName': speaker.name if speaker else 'Unknown',
+                        'votingChoices': choice_data
                     }, room=sid)
                     
                     # If the new player is the speaker, send them the emotion
@@ -227,11 +237,21 @@ class GameSocketEvents:
                     'currentSpeaker': speaker.name
                 }, room=room_id)
                 
-                # Send round start to all players
+                # Generate voting choices for this round
+                from models.emotion import get_emotion_choices_for_voting
+                if room.config.vote_type == "8choice":
+                    voting_choices = get_emotion_choices_for_voting(room.config.mode, emotion_id, 8)
+                else:
+                    voting_choices = get_emotion_choices_for_voting(room.config.mode, emotion_id, 4)
+                
+                choice_data = [{"id": choice.id, "name": choice.name_ja} for choice in voting_choices]
+                
+                # Send round start to all players with voting choices
                 await self.sio.emit('round_start', {
                     'roundId': round_data.id,
                     'phrase': phrase,
-                    'speakerName': speaker.name
+                    'speakerName': speaker.name,
+                    'votingChoices': choice_data
                 }, room=room_id)
                 
                 # Get emotion name for display

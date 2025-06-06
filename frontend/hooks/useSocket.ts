@@ -66,7 +66,8 @@ export const useSocket = () => {
         id: data.roundId,
         phrase: data.phrase,
         emotion_id: '', // Hidden from listeners
-        speaker_name: data.speakerName
+        speaker_name: data.speakerName,
+        voting_choices: data.votingChoices || []
       };
       store.setCurrentRound(round);
       store.setLastResult(null);
