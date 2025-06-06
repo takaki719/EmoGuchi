@@ -116,9 +116,25 @@ class GameSocketEvents:
                     
                     # If the new player is the speaker, send them the emotion
                     if room.current_round.speaker_id == player.id:
+                        # Get emotion name for display
+                        from models.emotion import BASIC_EMOTIONS, ADVANCED_EMOTIONS
+                        emotion_name = room.current_round.emotion_id  # fallback
+                        
+                        # Try to find emotion name
+                        for emotion_info in BASIC_EMOTIONS.values():
+                            if emotion_info.id == room.current_round.emotion_id:
+                                emotion_name = emotion_info.name_ja
+                                break
+                        else:
+                            for emotion_info in ADVANCED_EMOTIONS.values():
+                                if emotion_info.id == room.current_round.emotion_id:
+                                    emotion_name = emotion_info.name_ja
+                                    break
+                        
                         await self.sio.emit('speaker_emotion', {
                             'roundId': room.current_round.id,
-                            'emotionId': room.current_round.emotion_id
+                            'emotionId': room.current_round.emotion_id,
+                            'emotionName': emotion_name
                         }, room=sid)
                 
                 logger.info(f"Player {player_name} joined room {room_id}")
@@ -179,7 +195,7 @@ class GameSocketEvents:
                 
                 # Generate phrase and emotion with LLM
                 from services.llm_service import llm_service
-                phrase, emotion_id = await llm_service.generate_phrase_with_emotion(room.config.mode)
+                phrase, emotion_id = await llm_service.generate_phrase_with_emotion(room.config.mode, room.config.vote_type)
                 
                 # Get current speaker
                 speaker = room.get_current_speaker()
@@ -201,24 +217,7 @@ class GameSocketEvents:
                 room.phase = GamePhase.IN_ROUND
                 await state_store.update_room(room)
                 
-                # Send round start to all players
-                await self.sio.emit('round_start', {
-                    'roundId': round_data.id,
-                    'phrase': phrase,
-                    'speakerName': speaker.name
-                }, room=room_id)
-                
-                # Send emotion to speaker privately
-                speaker_sids = [s for s in self.sio.manager.get_participants(room_id, '/') 
-                              if (await self.sio.get_session(s)).get('player_id') == speaker.id]
-                
-                for speaker_sid in speaker_sids:
-                    await self.sio.emit('speaker_emotion', {
-                        'roundId': round_data.id,
-                        'emotionId': emotion_id
-                    }, room=speaker_sid)
-                
-                # Send updated room state to all players to sync phase
+                # Send updated room state to all players to sync phase first
                 player_names = [p.name for p in room.players.values()]
                 await self.sio.emit('room_state', {
                     'roomId': room.id,
@@ -226,6 +225,55 @@ class GameSocketEvents:
                     'phase': room.phase,
                     'config': room.config.dict(),
                     'currentSpeaker': speaker.name
+                }, room=room_id)
+                
+                # Send round start to all players
+                await self.sio.emit('round_start', {
+                    'roundId': round_data.id,
+                    'phrase': phrase,
+                    'speakerName': speaker.name
+                }, room=room_id)
+                
+                # Get emotion name for display
+                from models.emotion import BASIC_EMOTIONS, ADVANCED_EMOTIONS
+                emotion_name = emotion_id  # fallback
+                
+                # Try to find emotion name
+                for emotion_info in BASIC_EMOTIONS.values():
+                    if emotion_info.id == emotion_id:
+                        emotion_name = emotion_info.name_ja
+                        break
+                else:
+                    for emotion_info in ADVANCED_EMOTIONS.values():
+                        if emotion_info.id == emotion_id:
+                            emotion_name = emotion_info.name_ja
+                            break
+                
+                # Send emotion to speaker privately - find all speaker sessions
+                speaker_sids = []
+                for sid in self.sio.manager.get_participants(room_id, '/'):
+                    try:
+                        session = await self.sio.get_session(sid)
+                        if session.get('player_id') == speaker.id:
+                            speaker_sids.append(sid)
+                    except:
+                        continue
+                
+                # Send directly to each speaker session to ensure delivery
+                for speaker_sid in speaker_sids:
+                    await self.sio.emit('speaker_emotion', {
+                        'roundId': round_data.id,
+                        'emotionId': emotion_id,
+                        'emotionName': emotion_name,
+                        'speakerId': speaker.id
+                    }, room=speaker_sid)
+                
+                # Also send to entire room as backup with speaker filter in frontend
+                await self.sio.emit('speaker_emotion', {
+                    'roundId': round_data.id,
+                    'emotionId': emotion_id,
+                    'emotionName': emotion_name,
+                    'speakerId': speaker.id
                 }, room=room_id)
                 
                 logger.info(f"Round started in room {room_id}, speaker: {speaker.name}")

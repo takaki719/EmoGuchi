@@ -12,6 +12,13 @@ class GameMode(str, Enum):
 class VoteType(str, Enum):
     FOUR_CHOICE = "4choice"
     EIGHT_CHOICE = "8choice"
+    
+    @classmethod
+    def get_default_for_mode(cls, mode: 'GameMode') -> 'VoteType':
+        """Get default vote type for a given game mode"""
+        if mode == GameMode.ADVANCED:
+            return cls.EIGHT_CHOICE
+        return cls.FOUR_CHOICE
 
 class SpeakerOrder(str, Enum):
     RANDOM = "random"
@@ -55,6 +62,7 @@ class RoomConfig(BaseModel):
     vote_type: VoteType = VoteType.FOUR_CHOICE
     speaker_order: SpeakerOrder = SpeakerOrder.SEQUENTIAL
     vote_timeout: int = 30  # seconds
+    max_rounds: int = 3  # Number of rounds (turns) to play
     
     class Config:
         use_enum_values = True
@@ -101,6 +109,7 @@ class CreateRoomRequest(BaseModel):
     mode: GameMode = GameMode.BASIC
     vote_type: VoteType = VoteType.FOUR_CHOICE
     speaker_order: SpeakerOrder = SpeakerOrder.SEQUENTIAL
+    max_rounds: int = 3  # Number of rounds (turns) to play
     room_id: Optional[str] = None  # Custom room ID/passphrase
 
 class CreateRoomResponse(BaseModel):
