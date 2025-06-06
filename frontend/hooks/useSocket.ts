@@ -34,10 +34,11 @@ export const useSocket = () => {
     // Room events
     socket.on('room_state', (data: RoomState) => {
       store.setRoomState(data);
-      // Clear game complete state and last result when returning to waiting phase
+      
+      // Only clear game complete state when returning to waiting phase
+      // lastResult should remain visible until manually cleared
       if (data.phase === 'waiting') {
         store.setGameComplete(null);
-        store.setLastResult(null);
       }
     });
 
@@ -75,7 +76,7 @@ export const useSocket = () => {
         voting_choices: data.votingChoices || []
       };
       store.setCurrentRound(round);
-      store.setLastResult(null);
+      store.setLastResult(null); // Clear previous round result when new round starts
     });
 
     socket.on('speaker_emotion', (data: any) => {

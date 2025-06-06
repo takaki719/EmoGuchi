@@ -23,7 +23,8 @@ export default function RoomPage({ params }: { params: { roomId: string } }) {
     error,
     setPlayerName,
     setPlayerVote,
-    setGameComplete
+    setGameComplete,
+    setLastResult
   } = useGameStore();
 
   const [selectedEmotion, setSelectedEmotion] = useState('');
@@ -614,6 +615,7 @@ export default function RoomPage({ params }: { params: { roomId: string } }) {
                   <button
                     onClick={() => {
                       setGameComplete(null);
+                      setLastResult(null);
                       restartGame();
                     }}
                     className="w-full bg-green-600 text-white py-3 rounded-lg hover:bg-green-700 font-medium"
