@@ -11,7 +11,7 @@ export default function RoomPage({ params }: { params: { roomId: string } }) {
   const isHost = searchParams.get('host') === 'true';
   
   const { roomId } = params;
-  const { joinRoom, startRound, submitVote, isConnected } = useSocket();
+  const { joinRoom, startRound, submitVote, leaveRoom, isConnected } = useSocket();
   const {
     roomState,
     currentRound,
@@ -62,6 +62,16 @@ export default function RoomPage({ params }: { params: { roomId: string } }) {
       setTimeout(() => setCopySuccess(false), 2000);
     } catch (err) {
       console.error('Failed to copy room ID:', err);
+    }
+  };
+
+  const handleLeaveRoom = () => {
+    if (confirm('本当にルームから退出しますか？')) {
+      leaveRoom();
+      // Navigate back to home after leaving
+      setTimeout(() => {
+        window.location.href = '/';
+      }, 1000);
     }
   };
 
@@ -136,13 +146,22 @@ export default function RoomPage({ params }: { params: { roomId: string } }) {
                 </button>
               </div>
             </div>
-            <div className="text-right">
-              <p className="text-sm text-gray-500">フェーズ</p>
-              <p className="font-semibold">
-                {roomState.phase === 'waiting' && '待機中'}
-                {roomState.phase === 'in_round' && 'ラウンド中'}
-                {roomState.phase === 'result' && '結果発表'}
-              </p>
+            <div className="flex items-center gap-4">
+              <button
+                onClick={handleLeaveRoom}
+                className="px-3 py-1 text-sm bg-red-100 text-red-700 rounded hover:bg-red-200 transition-colors"
+                title="ルームから退出"
+              >
+                退出
+              </button>
+              <div className="text-right">
+                <p className="text-sm text-gray-500">フェーズ</p>
+                <p className="font-semibold">
+                  {roomState.phase === 'waiting' && '待機中'}
+                  {roomState.phase === 'in_round' && 'ラウンド中'}
+                  {roomState.phase === 'result' && '結果発表'}
+                </p>
+              </div>
             </div>
           </div>
         </div>

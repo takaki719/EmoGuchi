@@ -46,6 +46,16 @@ export const useSocket = () => {
       // Room state will be updated via room_state event
     });
 
+    socket.on('player_left', (data) => {
+      console.log(`${data.playerName} left the room`);
+      // Room state will be updated via room_state event
+    });
+
+    socket.on('left_room', (data) => {
+      console.log('Successfully left room:', data.message);
+      store.reset(); // Clear all game state
+    });
+
     socket.on('player_disconnected', (data) => {
       console.log(`${data.playerName} disconnected`);
     });
@@ -85,6 +95,8 @@ export const useSocket = () => {
       socket.off('room_state');
       socket.off('player_joined');
       socket.off('player_reconnected');
+      socket.off('player_left');
+      socket.off('left_room');
       socket.off('player_disconnected');
       socket.off('round_start');
       socket.off('speaker_emotion');
@@ -114,11 +126,19 @@ export const useSocket = () => {
     }
   }, []);
 
+  const leaveRoom = useCallback(() => {
+    const socket = socketClient.getSocket();
+    if (socket) {
+      socket.emit('leave_room', {});
+    }
+  }, []);
+
   return {
     socket: socketClient.getSocket(),
     isConnected: socketClient.isConnected(),
     joinRoom,
     startRound,
-    submitVote
+    submitVote,
+    leaveRoom
   };
 };

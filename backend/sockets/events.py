@@ -228,6 +228,78 @@ class GameSocketEvents:
                 }, room=sid)
         
         @self.sio.event
+        async def leave_room(sid, data):
+            """Handle player leaving a room"""
+            try:
+                session = await self.sio.get_session(sid)
+                room_id = session.get('room_id')
+                player_id = session.get('player_id')
+                
+                if not room_id or not player_id:
+                    await self.sio.emit('error', {
+                        'code': 'EMO-401',
+                        'message': 'Not authenticated'
+                    }, room=sid)
+                    return
+                
+                room = await state_store.get_room(room_id)
+                if not room or player_id not in room.players:
+                    await self.sio.emit('error', {
+                        'code': 'EMO-404',
+                        'message': 'Room or player not found'
+                    }, room=sid)
+                    return
+                
+                player = room.players[player_id]
+                player_name = player.name
+                
+                # Remove player from room
+                del room.players[player_id]
+                await state_store.update_room(room)
+                
+                # Leave socket room
+                await self.sio.leave_room(sid, room_id)
+                
+                # Clear session
+                await self.sio.save_session(sid, {})
+                
+                # Notify remaining players
+                await self.sio.emit('player_left', {
+                    'playerName': player_name,
+                    'playerId': player_id
+                }, room=room_id)
+                
+                # Send updated room state to remaining players
+                player_names = [p.name for p in room.players.values()]
+                current_speaker = None
+                if room.current_round and room.phase == 'in_round':
+                    speaker = room.get_current_speaker()
+                    if speaker:
+                        current_speaker = speaker.name
+                
+                await self.sio.emit('room_state', {
+                    'roomId': room.id,
+                    'players': player_names,
+                    'phase': room.phase,
+                    'config': room.config.dict(),
+                    'currentSpeaker': current_speaker
+                }, room=room_id)
+                
+                # Confirm to leaving player
+                await self.sio.emit('left_room', {
+                    'message': 'Successfully left the room'
+                }, room=sid)
+                
+                logger.info(f"Player {player_name} left room {room_id}")
+                
+            except Exception as e:
+                logger.error(f"Error in leave_room: {e}", exc_info=True)
+                await self.sio.emit('error', {
+                    'code': 'EMO-500',
+                    'message': f'Internal server error: {str(e)}'
+                }, room=sid)
+
+        @self.sio.event
         async def submit_vote(sid, data):
             """Submit vote for current round"""
             try:
