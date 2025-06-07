@@ -223,7 +223,7 @@ class GameSocketEvents:
                 
                 # Generate phrase and emotion with LLM
                 from services.llm_service import llm_service
-                phrase, emotion_id = await llm_service.generate_phrase_with_emotion(room.config.mode, room.config.vote_type)
+                phrase, emotion_id = await llm_service.generate_phrase_with_emotion(room.config.mode)
                 
                 # Get current speaker
                 speaker = room.get_current_speaker()

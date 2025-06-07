@@ -7,24 +7,48 @@ from config import settings
 class LLMService:
     def __init__(self):
         self.client = None
-        if settings.OPENAI_API_KEY:
-            self.client = AsyncOpenAI(api_key=settings.OPENAI_API_KEY)
-        
         # Fallback phrases for when LLM is unavailable
         self.fallback_phrases = [
-            "今日はとても良い天気ですね。",
-            "この料理は本当に美味しいです。",
-            "明日の会議の準備はできていますか？",
-            "最近読んだ本がとても面白かったです。",
-            "週末は家族と過ごす予定です。",
-            "新しいプロジェクトが始まりました。",
-            "電車が遅れているようですね。",
-            "コーヒーを飲みに行きませんか？",
-            "今度の休暇の計画は立てましたか？",
-            "この映画は感動的でした。"
+            "はぁ…",
+            "うそでしょ…",
+            "なんで…",
+            "まじか",
+            "やばい！",
+            "えっ！？",
+            "なんでよ！",
+            "あーあ…",
+            "なるほどね",
+            "ふーん"
         ]
+        self._initialize_client()
     
-    async def generate_phrase_with_emotion(self, mode: str = "basic", vote_type: str = "4choice") -> Tuple[str, str]:
+    def _initialize_client(self):
+        """Initialize OpenAI client if API key is available"""
+        try:
+            print(f"Starting OpenAI client initialization...")
+            print(f"API key present: {bool(settings.OPENAI_API_KEY)}")
+            
+            if settings.OPENAI_API_KEY and settings.OPENAI_API_KEY.strip():
+                print(f"Creating AsyncOpenAI client...")
+                self.client = AsyncOpenAI(api_key=settings.OPENAI_API_KEY)
+                print(f"OpenAI client initialized successfully")
+            else:
+                print("No OpenAI API key found, using fallback phrases only")
+                self.client = None
+        except Exception as e:
+            print(f"Exception during OpenAI client initialization: {e}")
+            import traceback
+            traceback.print_exc()
+            self.client = None
+    
+    def set_api_key(self, api_key: str):
+        """Dynamically set the OpenAI API key"""
+        settings.OPENAI_API_KEY = api_key
+        self.client = None  # Clear existing client
+        self._initialize_client()
+
+    
+    async def generate_phrase_with_emotion(self, mode: str = "basic") -> Tuple[str, str]:
         """Generate a phrase and select an emotion from available pool"""
         try:
             # Use the full emotion pool from emotion models for more variety
@@ -44,12 +68,14 @@ class LLMService:
             selected_emotion = random.choice(available_emotions)
             
             emotion_id = selected_emotion['id']
-            emotion_name = selected_emotion['name_ja']
-            emotion_name_en = selected_emotion['name_en']
             
             # Generate phrase with LLM
             if self.client:
-                phrase = await self._generate_phrase_with_openai(emotion_name, emotion_name_en)
+                try:
+                    phrase = await self._generate_phrase_with_openai()
+                except Exception as openai_error:
+                    print(f"OpenAI API error in generate_phrase_with_emotion: {openai_error}")
+                    phrase = random.choice(self.fallback_phrases)
             else:
                 phrase = random.choice(self.fallback_phrases)
             
@@ -57,32 +83,33 @@ class LLMService:
             
         except Exception as e:
             print(f"Error generating phrase: {e}")
+            import traceback
+            traceback.print_exc()
             # Fallback to basic emotions
             phrase = random.choice(self.fallback_phrases)
             fallback_emotions = ['joy', 'anger', 'sadness', 'surprise', 'fear', 'disgust', 'trust', 'anticipation']
             emotion_id = random.choice(fallback_emotions)
             return phrase, emotion_id
     
-    async def _generate_phrase_with_openai(self, emotion_ja: str, emotion_en: str) -> str:
+    async def _generate_phrase_with_openai(self) -> str:
         """Generate phrase using OpenAI API"""
         try:
-            prompt = f"""
-あなたは日本語の台詞生成AIです。指定された感情を表現する自然な日常会話の台詞を1つ生成してください。
-
-感情: {emotion_ja} ({emotion_en})
+            if not self.client:
+                print("OpenAI client not initialized")
+                return random.choice(self.fallback_phrases)
+            
+            prompt = """
+あなたは日本語の台詞生成AIです。同じ言葉でも感情や状況によって意味が異なる自然な日常会話の台詞を1つ生成してください。
 
 要件:
 - 日常的なシチュエーションでの台詞
-- 5-15文字程度
-- 自然で演技しやすい表現
-- 感情が分かりやすい台詞
+- 同じ言葉でも感情や状況によって意味が異なる台詞
+- 3-15文字程度
+- 短い一言で日常的に使われるものでお願いします。
 - 敬語・タメ口どちらでも可
 
 台詞のみを出力してください:
 """
-            
-            if not self.client:
-                return random.choice(self.fallback_phrases)
             
             response = await self.client.chat.completions.create(
                 model="gpt-4o-mini",
@@ -92,19 +119,31 @@ class LLMService:
                 ],
                 max_tokens=100,
                 temperature=0.8,
-                timeout=3.0  # 3 second timeout
+                timeout=10.0  # 10 second timeout
             )
             
-            phrase = response.choices[0].message.content.strip()
+            if not response or not response.choices:
+                print("No response from OpenAI API")
+                return random.choice(self.fallback_phrases)
+            
+            phrase = response.choices[0].message.content
+            if not phrase:
+                print("Empty content from OpenAI API")
+                return random.choice(self.fallback_phrases)
+                
+            phrase = phrase.strip()
             
             # Validate phrase length
-            if len(phrase) > 50 or len(phrase) < 5:
+            if len(phrase) > 50 or len(phrase) < 2:
+                print(f"Invalid phrase length: {len(phrase)}")
                 return random.choice(self.fallback_phrases)
             
             return phrase
             
         except Exception as e:
             print(f"OpenAI API error: {e}")
+            import traceback
+            traceback.print_exc()
             return random.choice(self.fallback_phrases)
     
     async def generate_batch_phrases(self, count: int = 5, mode: str = "basic") -> List[Tuple[str, str]]:
@@ -116,4 +155,16 @@ class LLMService:
         return phrases
 
 # Global instance
-llm_service = LLMService()
+llm_service = None
+
+def get_llm_service():
+    """Get or create the global LLM service instance"""
+    global llm_service
+    if llm_service is None:
+        print("Creating LLM service instance...")
+        llm_service = LLMService()
+        print("LLM service instance created successfully")
+    return llm_service
+
+# Initialize immediately to avoid any proxy issues
+llm_service = get_llm_service()
