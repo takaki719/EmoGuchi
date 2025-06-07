@@ -13,7 +13,7 @@
     <button onclick="joinTestRoom()">Join Test Room</button>
 
     <script>
-        const socket = io('http://localhost:8002');
+        const socket = io('http://localhost:8000');
         const statusDiv = document.getElementById('status');
         const messagesDiv = document.getElementById('messages');
         
@@ -47,7 +47,7 @@
         
         async function createRoom() {
             try {
-                const response = await fetch('http://localhost:8002/api/v1/rooms', {
+                const response = await fetch('http://localhost:8000/api/v1/rooms', {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',

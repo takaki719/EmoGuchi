@@ -68,5 +68,5 @@ async def health():
 
 if __name__ == "__main__":
     import uvicorn
-    print("Starting simple Socket.IO test server on port 8003...")
-    uvicorn.run(socket_app, host="0.0.0.0", port=8003)
+    print("Starting simple Socket.IO test server on port 8000...")
+    uvicorn.run(socket_app, host="0.0.0.0", port=8000)

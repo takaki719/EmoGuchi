@@ -66,7 +66,7 @@ Since this project is in planning phase, development commands will be establishe
 
 **Backend (FastAPI)**:
 - `uvicorn main:app --reload` - Start development server
-- `python -m pytest` - Run tests (if implemented)
+- `python3 -m pytest` - Run tests (if implemented)
 
 **Full Stack**:
 - `docker-compose up` - Start full development environment
