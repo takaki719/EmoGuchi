@@ -603,7 +603,7 @@ export default function RoomPage({ params }: { params: { roomId: string } }) {
               {isHost && !lastResult.isGameComplete && (
                 <div className="space-y-2">
                   <div className="text-center text-sm text-gray-600 mb-2">
-                    ラウンド {(lastResult.completedRounds || 0) + 1}/{lastResult.maxRounds || roomState?.config?.max_rounds || 3}
+                    ラウンド {(lastResult.completedRounds || 0)}/{lastResult.maxRounds || roomState?.config?.max_rounds || 3}
                   </div>
                   <button
                     onClick={handleStartRound}
