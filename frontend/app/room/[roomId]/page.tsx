@@ -4,6 +4,8 @@ import { useEffect, useState } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { useSocket } from '@/hooks/useSocket';
 import { useGameStore } from '@/stores/gameStore';
+import { useLocaleStore } from '@/stores/localeStore';
+import { translations } from '@/lib/translations';
 
 export default function RoomPage({ params }: { params: { roomId: string } }) {
   const searchParams = useSearchParams();
@@ -34,6 +36,8 @@ export default function RoomPage({ params }: { params: { roomId: string } }) {
   const [gameMode, setGameMode] = useState<'basic' | 'advanced'>('basic');
   const [maxRounds, setMaxRounds] = useState(3);
   const [speakerOrder, setSpeakerOrder] = useState<'sequential' | 'random'>('sequential');
+  const { locale } = useLocaleStore();
+  const t = translations[locale];
 
   useEffect(() => {
     if (playerName) {
@@ -87,12 +91,12 @@ export default function RoomPage({ params }: { params: { roomId: string } }) {
     } catch (err) {
       console.error('Failed to copy room ID:', err);
       // Fallback for browsers that don't support clipboard API
-      alert(`合言葉: ${roomId}`);
+      alert(`${t.common.roomId}: ${roomId}`);
     }
   };
 
   const handleLeaveRoom = () => {
-    if (confirm('本当にルームから退出しますか？')) {
+    if (confirm(t.common.leaveRoomConfirm)) {
       leaveRoom();
       // Navigate back to home after leaving
       setTimeout(() => {
@@ -105,7 +109,7 @@ export default function RoomPage({ params }: { params: { roomId: string } }) {
     try {
       const hostToken = localStorage.getItem('hostToken');
       if (!hostToken) {
-        alert('ホスト権限がありません');
+        alert(t.common.noHostPrivileges);
         return;
       }
 
@@ -129,10 +133,10 @@ export default function RoomPage({ params }: { params: { roomId: string } }) {
       }
 
       setShowSettings(false);
-      alert('設定を更新しました');
+      alert(t.common.settingsUpdated);
     } catch (error: any) {
       console.error('Error updating settings:', error);
-      alert(`設定の更新に失敗しました: ${error.message}`);
+      alert(`${t.common.settingsUpdateFailed}: ${error.message}`);
     }
   };
 
@@ -142,19 +146,19 @@ export default function RoomPage({ params }: { params: { roomId: string } }) {
     : (() => {
         // Fallback static choices
         const basicChoices = [
-          { id: 'joy', name: '喜び' },
-          { id: 'anger', name: '怒り' },
-          { id: 'sadness', name: '悲しみ' },
-          { id: 'surprise', name: '驚き' },
+          { id: 'joy', name: t.emotions.joy },
+          { id: 'anger', name: t.emotions.anger },
+          { id: 'sadness', name: t.emotions.sadness },
+          { id: 'surprise', name: t.emotions.surprise },
         ];
 
         if (roomState?.config?.vote_type === '8choice') {
           return [
             ...basicChoices,
-            { id: 'fear', name: '恐れ' },
-            { id: 'disgust', name: '嫌悪' },
-            { id: 'trust', name: '信頼' },
-            { id: 'anticipation', name: '期待' },
+            { id: 'fear', name: t.emotions.fear },
+            { id: 'disgust', name: t.emotions.disgust },
+            { id: 'trust', name: t.emotions.trust },
+            { id: 'anticipation', name: t.emotions.anticipation },
           ];
         }
 
@@ -167,13 +171,13 @@ export default function RoomPage({ params }: { params: { roomId: string } }) {
     return (
       <div className="min-h-screen flex items-center justify-center p-4">
         <div className="bg-red-50 border border-red-200 rounded-lg p-6 max-w-md w-full text-center">
-          <h2 className="text-red-800 font-bold mb-2">エラー</h2>
+          <h2 className="text-red-800 font-bold mb-2">{t.common.error}</h2>
           <p className="text-red-600">{error}</p>
           <button
             onClick={() => window.location.href = '/'}
             className="mt-4 bg-red-600 text-white px-4 py-2 rounded hover:bg-red-700"
           >
-            ホームに戻る
+            {t.common.backToHome}
           </button>
         </div>
       </div>
@@ -185,7 +189,7 @@ export default function RoomPage({ params }: { params: { roomId: string } }) {
       <div className="min-h-screen flex items-center justify-center">
         <div className="text-center">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
-          <p>サーバーに接続中...</p>
+          <p>{t.common.connecting}</p>
         </div>
       </div>
     );
@@ -196,7 +200,7 @@ export default function RoomPage({ params }: { params: { roomId: string } }) {
       <div className="min-h-screen flex items-center justify-center">
         <div className="text-center">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
-          <p>ルームに参加中...</p>
+          <p>{t.common.joiningRoom}</p>
         </div>
       </div>
     );
@@ -211,7 +215,7 @@ export default function RoomPage({ params }: { params: { roomId: string } }) {
             <div className="w-full sm:w-auto">
               <h1 className="text-xl sm:text-2xl font-bold text-gray-800">🎭 EMOGUCHI</h1>
               <div className="flex flex-col sm:flex-row sm:items-center gap-2 mt-1">
-                <span className="text-sm sm:text-base text-gray-600">合言葉: {roomId}</span>
+                <span className="text-sm sm:text-base text-gray-600">{t.common.roomId}: {roomId}</span>
                 <button
                   onClick={handleCopyRoomId}
                   className={`px-3 py-2 sm:px-2 sm:py-1 text-sm sm:text-xs rounded transition-colors self-start ${
@@ -219,7 +223,7 @@ export default function RoomPage({ params }: { params: { roomId: string } }) {
                       ? 'bg-green-100 text-green-700'
                       : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
                   }`}
-                  title="合言葉をコピー"
+                  title={t.common.copyRoomCode}
                 >
                   {copySuccess ? '✓' : '📋'}
                 </button>
@@ -227,19 +231,19 @@ export default function RoomPage({ params }: { params: { roomId: string } }) {
             </div>
             <div className="flex items-center gap-3 sm:gap-4 w-full sm:w-auto justify-between sm:justify-end">
               <div className="text-left sm:text-right">
-                <p className="text-xs sm:text-sm text-gray-500">フェーズ</p>
+                <p className="text-xs sm:text-sm text-gray-500">{t.common.phase}</p>
                 <p className="font-semibold text-sm sm:text-base">
-                  {roomState.phase === 'waiting' && '待機中'}
-                  {roomState.phase === 'in_round' && 'ラウンド中'}
-                  {roomState.phase === 'result' && '結果発表'}
+                  {roomState.phase === 'waiting' && t.common.waiting}
+                  {roomState.phase === 'in_round' && t.common.inRound}
+                  {roomState.phase === 'result' && t.common.result}
                 </p>
               </div>
               <button
                 onClick={handleLeaveRoom}
                 className="px-3 py-2 sm:px-3 sm:py-1 text-sm bg-red-100 text-red-700 rounded hover:bg-red-200 transition-colors"
-                title="ルームから退出"
+                title={t.common.exit}
               >
-                退出
+                {t.common.exit}
               </button>
             </div>
           </div>
@@ -247,7 +251,7 @@ export default function RoomPage({ params }: { params: { roomId: string } }) {
 
         {/* Players */}
         <div className="bg-white rounded-lg shadow-md p-3 sm:p-6 mb-4 sm:mb-6">
-          <h2 className="text-base sm:text-lg font-semibold mb-3 sm:mb-4">プレイヤー ({roomState.players.length}名)</h2>
+          <h2 className="text-base sm:text-lg font-semibold mb-3 sm:mb-4">{t.common.players} ({roomState.players.length}{t.game.peopleCounter})</h2>
           <div className={`grid gap-2 sm:gap-3 ${
             roomState.players.length <= 4 ? 'grid-cols-2 sm:grid-cols-4' :
             roomState.players.length <= 6 ? 'grid-cols-2 sm:grid-cols-3' :
@@ -266,10 +270,10 @@ export default function RoomPage({ params }: { params: { roomId: string } }) {
               >
                 <div className="text-xs sm:text-sm font-medium truncate" title={player}>{player}</div>
                 {player === playerName && (
-                  <div className="text-xs text-blue-600">あなた</div>
+                  <div className="text-xs text-blue-600">{t.common.you}</div>
                 )}
                 {player === roomState.currentSpeaker && (
-                  <div className="text-xs text-green-600">スピーカー</div>
+                  <div className="text-xs text-green-600">{t.common.speaker}</div>
                 )}
               </div>
             ))}
@@ -281,26 +285,28 @@ export default function RoomPage({ params }: { params: { roomId: string } }) {
           {roomState.phase === 'waiting' && (
             <div className="space-y-6">
               <div className="text-center">
-                <h2 className="text-xl font-semibold mb-4">ゲーム開始を待っています</h2>
+                <h2 className="text-xl font-semibold mb-4">{t.game.waitingForHost}</h2>
                 
-                {/* Current Settings Display */}
-                <div className="bg-gray-50 p-4 rounded-lg mb-4">
-                  <h3 className="font-semibold mb-2">現在の設定</h3>
-                  <div className="grid grid-cols-2 gap-4 text-sm">
-                    <div>
-                      <span className="text-gray-600">感情モード:</span>
-                      <span className="ml-2">{roomState.config.mode === 'basic' ? '基本感情 (4択)' : '応用感情 (8択)'}</span>
-                    </div>
-                    <div>
-                      <span className="text-gray-600">ラウンド数:</span>
-                      <span className="ml-2">{roomState.config.max_rounds}周</span>
-                    </div>
-                    <div>
-                      <span className="text-gray-600">発言順:</span>
-                      <span className="ml-2">{roomState.config.speaker_order === 'sequential' ? '順番' : 'ランダム'}</span>
+                {/* Current Settings Display - Hidden during active game */}
+                {!lastResult && !gameComplete && (
+                  <div className="bg-gray-50 p-4 rounded-lg mb-4">
+                    <h3 className="font-semibold mb-2">{t.game.currentSettings}</h3>
+                    <div className="grid grid-cols-2 gap-4 text-sm">
+                      <div>
+                        <span className="text-gray-600">{t.home.gameMode}:</span>
+                        <span className="ml-2">{roomState.config.mode === 'basic' ? t.home.basicMode : t.home.advancedMode}</span>
+                      </div>
+                      <div>
+                        <span className="text-gray-600">{t.home.maxRounds}:</span>
+                        <span className="ml-2">{roomState.config.max_rounds}{t.home.rounds}</span>
+                      </div>
+                      <div>
+                        <span className="text-gray-600">{t.home.speakerOrder}:</span>
+                        <span className="ml-2">{roomState.config.speaker_order === 'sequential' ? t.home.sequential : t.home.random}</span>
+                      </div>
                     </div>
                   </div>
-                </div>
+                )}
 
                 {isHost && (
                   <div className="space-y-3">
@@ -310,7 +316,7 @@ export default function RoomPage({ params }: { params: { roomId: string } }) {
                         onClick={() => setShowSettings(!showSettings)}
                         className="px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors"
                       >
-                        ⚙️ 設定変更
+                        ⚙️ {t.common.settings}
                       </button>
                     )}
                     
@@ -319,7 +325,7 @@ export default function RoomPage({ params }: { params: { roomId: string } }) {
                         {/* Game Mode */}
                         <div className="mb-4">
                           <label className="block text-sm font-medium text-gray-700 mb-2">
-                            感情モード
+                            {t.home.gameMode}
                           </label>
                           <div className="grid grid-cols-2 gap-2">
                             <button
@@ -331,7 +337,7 @@ export default function RoomPage({ params }: { params: { roomId: string } }) {
                                   : 'bg-white border border-gray-300 text-gray-700 hover:bg-gray-50'
                               }`}
                             >
-                              基本感情 (4択)
+                              {t.home.basicMode}
                             </button>
                             <button
                               type="button"
@@ -342,7 +348,7 @@ export default function RoomPage({ params }: { params: { roomId: string } }) {
                                   : 'bg-white border border-gray-300 text-gray-700 hover:bg-gray-50'
                               }`}
                             >
-                              応用感情 (8択)
+                              {t.home.advancedMode}
                             </button>
                           </div>
                         </div>
@@ -350,7 +356,7 @@ export default function RoomPage({ params }: { params: { roomId: string } }) {
                         {/* Max Rounds */}
                         <div className="mb-4">
                           <label htmlFor="maxRounds" className="block text-sm font-medium text-gray-700 mb-2">
-                            ラウンド数
+                            {t.home.maxRounds}
                           </label>
                           <select
                             id="maxRounds"
@@ -359,7 +365,7 @@ export default function RoomPage({ params }: { params: { roomId: string } }) {
                             className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                           >
                             {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map(num => (
-                              <option key={num} value={num}>{num}周</option>
+                              <option key={num} value={num}>{num}{t.home.rounds}</option>
                             ))}
                           </select>
                         </div>
@@ -367,7 +373,7 @@ export default function RoomPage({ params }: { params: { roomId: string } }) {
                         {/* Speaker Order */}
                         <div className="mb-4">
                           <label className="block text-sm font-medium text-gray-700 mb-2">
-                            発言順
+                            {t.home.speakerOrder}
                           </label>
                           <div className="grid grid-cols-2 gap-2">
                             <button
@@ -379,7 +385,7 @@ export default function RoomPage({ params }: { params: { roomId: string } }) {
                                   : 'bg-white border border-gray-300 text-gray-700 hover:bg-gray-50'
                               }`}
                             >
-                              順番
+                              {t.home.sequential}
                             </button>
                             <button
                               type="button"
@@ -390,7 +396,7 @@ export default function RoomPage({ params }: { params: { roomId: string } }) {
                                   : 'bg-white border border-gray-300 text-gray-700 hover:bg-gray-50'
                               }`}
                             >
-                              ランダム
+                              {t.home.random}
                             </button>
                           </div>
                         </div>
@@ -400,13 +406,13 @@ export default function RoomPage({ params }: { params: { roomId: string } }) {
                             onClick={handleUpdateSettings}
                             className="flex-1 bg-green-600 text-white py-2 px-4 rounded-lg hover:bg-green-700 transition-colors"
                           >
-                            設定を保存
+                            {t.common.save}
                           </button>
                           <button
                             onClick={() => setShowSettings(false)}
                             className="flex-1 bg-gray-400 text-white py-2 px-4 rounded-lg hover:bg-gray-500 transition-colors"
                           >
-                            キャンセル
+                            {t.common.cancel}
                           </button>
                         </div>
                       </div>
@@ -423,14 +429,10 @@ export default function RoomPage({ params }: { params: { roomId: string } }) {
                             : 'bg-green-600 text-white hover:bg-green-700'
                         }`}
                       >
-                        {isStartingRound ? '開始中...' : roomState.players.length < 2 ? '2人以上必要' : '🎮 ゲーム開始'}
+                        {isStartingRound ? t.game.starting : roomState.players.length < 2 ? t.game.minimumPlayers : `🎮 ${t.game.gameStart}`}
                       </button>
                     )}
                   </div>
-                )}
-                
-                {!isHost && (
-                  <p className="text-gray-600">ホストがゲームを開始するのを待っています...</p>
                 )}
               </div>
             </div>
@@ -444,37 +446,37 @@ export default function RoomPage({ params }: { params: { roomId: string } }) {
                     // リスナー向けの表示
                     <div className="text-center">
                       <h2 className="text-xl font-semibold mb-2">
-                        スピーカー: {currentRound.speaker_name}
+                        {t.game.speakerIs} {currentRound.speaker_name}
                       </h2>
                       <div className="bg-gray-50 p-4 rounded-lg">
                         <p className="text-lg">{currentRound.phrase}</p>
                       </div>
                       <p className="text-sm text-gray-600 mt-2">
-                        スピーカーが演技するのを聞いて、感情を推測してください
+                        {t.game.listenAndGuess}
                       </p>
                     </div>
                   ) : (
                     // スピーカー向けの表示
                     <div className="text-center">
                       <h2 className="text-xl font-semibold mb-4 text-orange-700">
-                        🎭 あなたがスピーカーです
+                        {t.game.youAreSpeakerTitle}
                       </h2>
                       <div className="bg-orange-50 border-2 border-orange-200 rounded-lg p-6">
-                        <h3 className="font-bold text-orange-800 mb-3 text-lg">演技してください:</h3>
+                        <h3 className="font-bold text-orange-800 mb-3 text-lg">{t.game.performWith}</h3>
                         <div className="space-y-4">
                           <div>
-                            <h4 className="font-semibold text-orange-700 mb-1">セリフ:</h4>
+                            <h4 className="font-semibold text-orange-700 mb-1">{t.game.script}</h4>
                             <p className="text-xl font-medium text-orange-900 bg-white p-3 rounded border">{currentRound.phrase}</p>
                           </div>
                           {speakerEmotion && (
                             <div>
-                              <h4 className="font-semibold text-orange-700 mb-1">感情:</h4>
+                              <h4 className="font-semibold text-orange-700 mb-1">{t.game.emotion}</h4>
                               <p className="text-lg font-medium text-orange-900 bg-white p-3 rounded border">{speakerEmotion}</p>
                             </div>
                           )}
                         </div>
                         <p className="text-sm text-orange-700 mt-4 font-medium">
-                          この感情でセリフを読み上げてください。他の参加者があなたの感情を推測します。
+                          {t.game.speakerInstructions}
                         </p>
                       </div>
                     </div>
@@ -483,13 +485,13 @@ export default function RoomPage({ params }: { params: { roomId: string } }) {
               ) : (
                 <div className="text-center">
                   <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
-                  <p>ラウンドデータを読み込み中...</p>
+                  <p>{t.common.loadingRoundData}</p>
                 </div>
               )}
 
               {currentRound && !isCurrentSpeaker && !playerVote && (
                 <div className="space-y-3 sm:space-y-4">
-                  <h3 className="font-semibold text-sm sm:text-base">感情を推測してください:</h3>
+                  <h3 className="font-semibold text-sm sm:text-base">{t.game.guessEmotion}</h3>
                   <div className={`grid gap-2 sm:gap-3 ${
                     emotionChoices.length <= 4 ? 'grid-cols-2' : 'grid-cols-2 sm:grid-cols-4'
                   }`}>
@@ -512,7 +514,7 @@ export default function RoomPage({ params }: { params: { roomId: string } }) {
                     disabled={!selectedEmotion}
                     className="w-full bg-green-600 text-white py-3 sm:py-4 rounded-lg hover:bg-green-700 disabled:bg-gray-400 font-medium text-sm sm:text-base"
                   >
-                    投票する
+                    {t.game.vote}
                   </button>
                 </div>
               )}
@@ -520,15 +522,15 @@ export default function RoomPage({ params }: { params: { roomId: string } }) {
               {currentRound && !isCurrentSpeaker && playerVote && (
                 <div className="text-center space-y-3">
                   <div className="bg-blue-50 p-4 rounded-lg border border-blue-200">
-                    <p className="text-blue-800 font-semibold mb-2">投票完了！</p>
+                    <p className="text-blue-800 font-semibold mb-2">{t.game.voteComplete}</p>
                     <div className="text-sm">
-                      <span className="text-blue-600">あなたの投票: </span>
+                      <span className="text-blue-600">{t.game.yourVote}: </span>
                       <span className="font-medium text-blue-800">
                         {emotionChoices.find(e => e.id === playerVote)?.name || playerVote}
                       </span>
                     </div>
                   </div>
-                  <p className="text-gray-600 text-sm">他のプレイヤーを待っています...</p>
+                  <p className="text-gray-600 text-sm">{t.game.waitingForOthers}</p>
                 </div>
               )}
             </div>
@@ -536,7 +538,7 @@ export default function RoomPage({ params }: { params: { roomId: string } }) {
 
           {lastResult && (
             <div className="space-y-4">
-              <h2 className="text-xl font-semibold text-center">結果発表</h2>
+              <h2 className="text-xl font-semibold text-center">{t.game.resultAnnouncement}</h2>
               {/* Player's Vote Result */}
               {lastResult.votes && lastResult.votes[playerName] ? (
                 <div className={`p-4 rounded-lg border-2 ${
@@ -560,18 +562,18 @@ export default function RoomPage({ params }: { params: { roomId: string } }) {
                         const playerVotedEmotion = lastResult.votes[playerName];
                         const correctEmotionId = lastResult.correctEmotionId;
                         const isCorrect = correctEmotionId ? playerVotedEmotion === correctEmotionId : false;
-                        return isCorrect ? '🎉 正解！' : '❌ 不正解';
+                        return isCorrect ? t.game.correctEmoji : t.game.incorrectEmoji;
                       })()}
                     </p>
                     <div className="space-y-2">
                       <p className="text-sm">
-                        <span className="text-gray-600">あなたの投票: </span>
+                        <span className="text-gray-600">{t.game.yourVoteLabel} </span>
                         <span className="font-medium">
                           {emotionChoices.find(e => e.id === lastResult.votes[playerName])?.name || lastResult.votes[playerName]}
                         </span>
                       </p>
                       <p className="text-sm">
-                        <span className="text-gray-600">正解: </span>
+                        <span className="text-gray-600">{t.game.correctAnswerLabel} </span>
                         <span className="font-medium">
                           {lastResult.correct_emotion}
                         </span>
@@ -582,9 +584,9 @@ export default function RoomPage({ params }: { params: { roomId: string } }) {
                       const correctEmotionId = lastResult.correctEmotionId;
                       const isCorrect = correctEmotionId ? playerVotedEmotion === correctEmotionId : false;
                       if (isCorrect) {
-                        return <p className="text-green-700 text-sm mt-2 font-medium">+1ポイント獲得！</p>;
+                        return <p className="text-green-700 text-sm mt-2 font-medium">{t.game.pointsEarned}</p>;
                       } else {
-                        return <p className="text-red-700 text-sm mt-2 font-medium">今回はポイントなし</p>;
+                        return <p className="text-red-700 text-sm mt-2 font-medium">{t.game.noPointsThisTime}</p>;
                       }
                     })()}
                   </div>
@@ -593,16 +595,16 @@ export default function RoomPage({ params }: { params: { roomId: string } }) {
                 // スピーカーの場合
       <div className="bg-blue-50 p-6 rounded-lg text-center border border-blue-200">
         <p className="text-lg font-semibold text-blue-700 mb-2">
-          あなたはスピーカーでした
+          {t.game.youWereSpeaker}
         </p>
         <p className="text-xl font-bold">
-          正解: {lastResult.correct_emotion}
+          {t.game.correctAnswerLabel} {lastResult.correct_emotion}
         </p>
       </div>
               )}
               
               <div>
-                <h3 className="font-semibold mb-2">現在のスコア:</h3>
+                <h3 className="font-semibold mb-2">{t.common.currentScore}:</h3>
                 <div className="space-y-2">
                   {Object.entries(lastResult.scores).map(([player, score]) => (
                     <div key={player} className="flex justify-between p-2 bg-gray-50 rounded">
@@ -616,7 +618,7 @@ export default function RoomPage({ params }: { params: { roomId: string } }) {
               {isHost && !lastResult.isGameComplete && (
                 <div className="space-y-2">
                   <div className="text-center text-sm text-gray-600 mb-2">
-                    ラウンド {(lastResult.completedRounds || 0)}/{lastResult.maxRounds || roomState?.config?.max_rounds || 3}
+                    {t.game.roundProgress} {(lastResult.completedRounds || 0)}/{lastResult.maxRounds || roomState?.config?.max_rounds || 3}
                   </div>
                   <button
                     onClick={handleStartRound}
@@ -627,7 +629,7 @@ export default function RoomPage({ params }: { params: { roomId: string } }) {
                         : 'bg-blue-600 text-white hover:bg-blue-700'
                     }`}
                   >
-                    {isStartingRound ? '準備中...' : '➡️ 次のラウンドへ'}
+                    {isStartingRound ? t.game.preparing : t.game.nextRoundArrow}
                   </button>
                 </div>
               )}
@@ -635,10 +637,10 @@ export default function RoomPage({ params }: { params: { roomId: string } }) {
               {lastResult.isGameComplete && (
                 <div className="text-center bg-yellow-50 p-4 rounded-lg">
                   <h3 className="text-lg font-semibold text-yellow-800 mb-2">
-                    🎉 ゲーム終了！
+                    {t.game.gameEndEmoji}
                   </h3>
                   <p className="text-yellow-700">
-                    {lastResult.completedRounds}/{lastResult.maxRounds}ラウンド完了
+                    {lastResult.completedRounds}/{lastResult.maxRounds}{t.game.roundsCompleted}
                   </p>
                 </div>
               )}
@@ -647,10 +649,10 @@ export default function RoomPage({ params }: { params: { roomId: string } }) {
 
           {gameComplete && (
             <div className="space-y-6">
-              <h2 className="text-2xl font-bold text-center text-gold">🏆 最終結果発表</h2>
+              <h2 className="text-2xl font-bold text-center text-gold">{t.game.finalResultsEmoji}</h2>
               
               <div className="bg-gradient-to-br from-yellow-50 to-orange-50 p-6 rounded-lg border-2 border-yellow-200">
-                <h3 className="text-xl font-semibold mb-4 text-center">順位表</h3>
+                <h3 className="text-xl font-semibold mb-4 text-center">{t.game.ranking}</h3>
                 <div className="space-y-3">
                   {gameComplete.rankings.map((player, index) => (
                     <div key={player.name} className={`flex items-center justify-between p-4 rounded-lg ${
@@ -666,13 +668,13 @@ export default function RoomPage({ params }: { params: { roomId: string } }) {
                           index === 2 ? 'text-orange-600' :
                           'text-gray-500'
                         }`}>
-                          {index === 0 ? '🥇' : index === 1 ? '🥈' : index === 2 ? '🥉' : `${player.rank}位`}
+                          {index === 0 ? '🥇' : index === 1 ? '🥈' : index === 2 ? '🥉' : `${player.rank}${t.common.rank}`}
                         </span>
                         <span className={`font-semibold ${
                           player.name === playerName ? 'text-blue-600' : 'text-gray-800'
                         }`}>
                           {player.name}
-                          {player.name === playerName && ' (あなた)'}
+                          {player.name === playerName && ` (${t.common.you})`}
                         </span>
                       </div>
                       <span className="text-xl font-bold text-gray-800">{player.score}pt</span>
@@ -681,141 +683,13 @@ export default function RoomPage({ params }: { params: { roomId: string } }) {
                 </div>
                 
                 <div className="mt-6 text-center text-gray-600">
-                  <p>全{gameComplete.totalRounds}ラウンドお疲れ様でした！</p>
+                  <p>{t.game.allRoundsComplete.replace('{rounds}', gameComplete.totalRounds.toString())}</p>
                 </div>
               </div>
 
               {isHost && (
                 <div className="space-y-4">
                   {/* Settings Section for Next Game */}
-                  <div className="bg-white p-4 rounded-lg border border-gray-200">
-                    <h4 className="font-semibold mb-3 text-center">次のゲーム設定</h4>
-                    
-                    {/* Current Settings Display */}
-                    <div className="bg-gray-50 p-3 rounded-lg mb-3">
-                      <h5 className="font-medium mb-2 text-sm">現在の設定</h5>
-                      <div className="grid grid-cols-2 gap-2 text-xs">
-                        <div>
-                          <span className="text-gray-600">感情モード:</span>
-                          <span className="ml-1">{roomState?.config.mode === 'basic' ? '基本 (4択)' : '応用 (8択)'}</span>
-                        </div>
-                        <div>
-                          <span className="text-gray-600">ラウンド数:</span>
-                          <span className="ml-1">{roomState?.config.max_rounds}周</span>
-                        </div>
-                        <div className="col-span-2">
-                          <span className="text-gray-600">発言順:</span>
-                          <span className="ml-1">{roomState?.config.speaker_order === 'sequential' ? '順番' : 'ランダム'}</span>
-                        </div>
-                      </div>
-                    </div>
-                    
-                    <button
-                      onClick={() => setShowSettings(!showSettings)}
-                      className="w-full px-3 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors text-sm"
-                    >
-                      ⚙️ 設定変更
-                    </button>
-                    
-                    {showSettings && (
-                      <div className="mt-3 p-3 border border-gray-200 rounded-lg bg-gray-50">
-                        {/* Game Mode */}
-                        <div className="mb-3">
-                          <label className="block text-xs font-medium text-gray-700 mb-1">
-                            感情モード
-                          </label>
-                          <div className="grid grid-cols-2 gap-1">
-                            <button
-                              type="button"
-                              onClick={() => setGameMode('basic')}
-                              className={`px-2 py-1 rounded text-xs font-medium transition-all ${
-                                gameMode === 'basic'
-                                  ? 'bg-blue-600 text-white'
-                                  : 'bg-white border border-gray-300 text-gray-700 hover:bg-gray-50'
-                              }`}
-                            >
-                              基本感情 (4択)
-                            </button>
-                            <button
-                              type="button"
-                              onClick={() => setGameMode('advanced')}
-                              className={`px-2 py-1 rounded text-xs font-medium transition-all ${
-                                gameMode === 'advanced'
-                                  ? 'bg-blue-600 text-white'
-                                  : 'bg-white border border-gray-300 text-gray-700 hover:bg-gray-50'
-                              }`}
-                            >
-                              応用感情 (8択)
-                            </button>
-                          </div>
-                        </div>
-
-                        {/* Max Rounds */}
-                        <div className="mb-3">
-                          <label htmlFor="maxRounds" className="block text-xs font-medium text-gray-700 mb-1">
-                            ラウンド数
-                          </label>
-                          <select
-                            id="maxRounds"
-                            value={maxRounds}
-                            onChange={(e) => setMaxRounds(Number(e.target.value))}
-                            className="w-full px-2 py-1 border border-gray-300 rounded text-xs focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-transparent"
-                          >
-                            {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map(num => (
-                              <option key={num} value={num}>{num}周</option>
-                            ))}
-                          </select>
-                        </div>
-
-                        {/* Speaker Order */}
-                        <div className="mb-3">
-                          <label className="block text-xs font-medium text-gray-700 mb-1">
-                            発言順
-                          </label>
-                          <div className="grid grid-cols-2 gap-1">
-                            <button
-                              type="button"
-                              onClick={() => setSpeakerOrder('sequential')}
-                              className={`px-2 py-1 rounded text-xs font-medium transition-all ${
-                                speakerOrder === 'sequential'
-                                  ? 'bg-blue-600 text-white'
-                                  : 'bg-white border border-gray-300 text-gray-700 hover:bg-gray-50'
-                              }`}
-                            >
-                              順番
-                            </button>
-                            <button
-                              type="button"
-                              onClick={() => setSpeakerOrder('random')}
-                              className={`px-2 py-1 rounded text-xs font-medium transition-all ${
-                                speakerOrder === 'random'
-                                  ? 'bg-blue-600 text-white'
-                                  : 'bg-white border border-gray-300 text-gray-700 hover:bg-gray-50'
-                              }`}
-                            >
-                              ランダム
-                            </button>
-                          </div>
-                        </div>
-
-                        <div className="flex gap-1">
-                          <button
-                            onClick={handleUpdateSettings}
-                            className="flex-1 bg-green-600 text-white py-1 px-2 rounded text-xs hover:bg-green-700 transition-colors"
-                          >
-                            設定を保存
-                          </button>
-                          <button
-                            onClick={() => setShowSettings(false)}
-                            className="flex-1 bg-gray-400 text-white py-1 px-2 rounded text-xs hover:bg-gray-500 transition-colors"
-                          >
-                            キャンセル
-                          </button>
-                        </div>
-                      </div>
-                    )}
-                  </div>
-                  
                   <button
                     onClick={() => {
                       setGameComplete(null);
@@ -824,17 +698,17 @@ export default function RoomPage({ params }: { params: { roomId: string } }) {
                     }}
                     className="w-full bg-green-600 text-white py-3 rounded-lg hover:bg-green-700 font-medium"
                   >
-                    🔄 もう一度プレイ
+                    {t.game.playAgainEmoji}
                   </button>
                   <p className="text-center text-sm text-gray-500">
-                    スコアをリセットして新しいゲームを開始します
+                    {t.game.resetMessage}
                   </p>
                 </div>
               )}
 
               {!isHost && (
                 <div className="text-center text-gray-600">
-                  <p>ホストが次のゲームを開始するのを待っています...</p>
+                  <p>{t.game.waitingForNextGame}</p>
                 </div>
               )}
             </div>
