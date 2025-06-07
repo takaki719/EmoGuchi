@@ -203,44 +203,44 @@ export default function RoomPage({ params }: { params: { roomId: string } }) {
   }
 
   return (
-    <div className="min-h-screen p-4">
+    <div className="min-h-screen p-2 sm:p-4">
       <div className="max-w-4xl mx-auto">
         {/* Header */}
-        <div className="bg-white rounded-lg shadow-md p-6 mb-6">
-          <div className="flex justify-between items-center">
-            <div>
-              <h1 className="text-2xl font-bold text-gray-800">🎭 EMOGUCHI</h1>
-              <div className="flex items-center gap-2">
-                <span className="text-gray-600">合言葉: {roomId}</span>
+        <div className="bg-white rounded-lg shadow-md p-3 sm:p-6 mb-4 sm:mb-6">
+          <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 sm:gap-0">
+            <div className="w-full sm:w-auto">
+              <h1 className="text-xl sm:text-2xl font-bold text-gray-800">🎭 EMOGUCHI</h1>
+              <div className="flex flex-col sm:flex-row sm:items-center gap-2 mt-1">
+                <span className="text-sm sm:text-base text-gray-600">合言葉: {roomId}</span>
                 <button
                   onClick={handleCopyRoomId}
-                  className={`px-2 py-1 text-xs rounded transition-colors ${
+                  className={`px-3 py-2 sm:px-2 sm:py-1 text-sm sm:text-xs rounded transition-colors self-start ${
                     copySuccess
                       ? 'bg-green-100 text-green-700'
                       : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
                   }`}
                   title="合言葉をコピー"
                 >
-                  {copySuccess ? '✓ コピー済み' : '📋 コピー'}
+                  {copySuccess ? '✓' : '📋'}
                 </button>
               </div>
             </div>
-            <div className="flex items-center gap-4">
-              <button
-                onClick={handleLeaveRoom}
-                className="px-3 py-1 text-sm bg-red-100 text-red-700 rounded hover:bg-red-200 transition-colors"
-                title="ルームから退出"
-              >
-                退出
-              </button>
-              <div className="text-right">
-                <p className="text-sm text-gray-500">フェーズ</p>
-                <p className="font-semibold">
+            <div className="flex items-center gap-3 sm:gap-4 w-full sm:w-auto justify-between sm:justify-end">
+              <div className="text-left sm:text-right">
+                <p className="text-xs sm:text-sm text-gray-500">フェーズ</p>
+                <p className="font-semibold text-sm sm:text-base">
                   {roomState.phase === 'waiting' && '待機中'}
                   {roomState.phase === 'in_round' && 'ラウンド中'}
                   {roomState.phase === 'result' && '結果発表'}
                 </p>
               </div>
+              <button
+                onClick={handleLeaveRoom}
+                className="px-3 py-2 sm:px-3 sm:py-1 text-sm bg-red-100 text-red-700 rounded hover:bg-red-200 transition-colors"
+                title="ルームから退出"
+              >
+                退出
+              </button>
             </div>
           </div>
         </div>
@@ -525,7 +525,6 @@ export default function RoomPage({ params }: { params: { roomId: string } }) {
           {lastResult && (
             <div className="space-y-4">
               <h2 className="text-xl font-semibold text-center">結果発表</h2>
-
               {/* Player's Vote Result */}
               {lastResult.votes && lastResult.votes[playerName] ? (
                 <div className={`p-4 rounded-lg border-2 ${

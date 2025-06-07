@@ -616,10 +616,10 @@ class GameSocketEvents:
             is_game_complete = completed_rounds >= room.config.max_rounds
             
             await self.sio.emit('round_result', {
-                'roundId': round_data.id,
-                'correctEmotion': correct_emotion_name,
+                'round_id': round_data.id,
+                'correct_emotion': correct_emotion_name,
                 'correctEmotionId': correct_emotion,  # Add emotion ID for easy comparison
-                'speakerName': speaker.name,
+                'speaker_name': speaker.name,
                 'scores': scores,
                 'votes': {room.players[pid].name: emotion for pid, emotion in round_data.votes.items()},
                 'isGameComplete': is_game_complete,

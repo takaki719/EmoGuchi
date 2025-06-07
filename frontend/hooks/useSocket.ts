@@ -87,6 +87,9 @@ export const useSocket = () => {
     });
 
     socket.on('round_result', (data: RoundResult) => {
+      console.log('Received round_result:', data);
+      console.log('correct_emotion:', data.correct_emotion);
+      console.log('correctEmotionId:', data.correctEmotionId);
       store.setLastResult(data);
       store.setCurrentRound(null);
       store.setSpeakerEmotion(null);
