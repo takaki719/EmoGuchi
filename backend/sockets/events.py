@@ -9,21 +9,27 @@ logger = logging.getLogger(__name__)
 class GameSocketEvents:
     def __init__(self, sio: socketio.AsyncServer):
         self.sio = sio
+        # 初期化時にsioがNoneでないことを確認
+        if self.sio is None:
+            raise ValueError("SocketIO server instance cannot be None")
         self.setup_events()
     
     def setup_events(self):
         """Register all socket event handlers"""
         
+        # Capture self in local scope to avoid closure issues
+        events_instance = self
+        
         @self.sio.event
         async def connect(sid, environ):
             logger.info(f"Client connected: {sid}")
-            await self.sio.emit('connected', {'message': 'Connected to EMOGUCHI server'}, room=sid)
+            await events_instance.sio.emit('connected', {'message': 'Connected to EMOGUCHI server'}, room=sid)
         
         @self.sio.event
         async def disconnect(sid):
             logger.info(f"Client disconnected: {sid}")
             # Handle player disconnection
-            await self._handle_player_disconnect(sid)
+            await events_instance._handle_player_disconnect(sid)
         
         @self.sio.event
         async def join_room(sid, data):
@@ -35,7 +41,7 @@ class GameSocketEvents:
                 
                 if not room_id or not player_name:
                     logger.error(f"Missing data - roomId: {room_id}, playerName: {player_name}")
-                    await self.sio.emit('error', {
+                    await events_instance.sio.emit('error', {
                         'code': 'EMO-400',
                         'message': 'Missing roomId or playerName'
                     }, room=sid)
@@ -43,7 +49,7 @@ class GameSocketEvents:
                 
                 room = await state_store.get_room(room_id)
                 if not room:
-                    await self.sio.emit('error', {
+                    await events_instance.sio.emit('error', {
                         'code': 'EMO-404',
                         'message': 'Room not found'
                     }, room=sid)
@@ -69,23 +75,35 @@ class GameSocketEvents:
                 
                 await state_store.update_room(room)
                 
-                # Join socket room
-                await self.sio.enter_room(sid, room_id)
+                # Join socket room - 安全性チェックを追加
+                try:
+                    # enter_roomメソッドが存在するか確認
+                    if hasattr(events_instance.sio, 'enter_room'):
+                        await events_instance.sio.enter_room(sid, room_id)
+                    else:
+                        # 代替手段としてjoinメソッドを使用
+                        await events_instance.sio.join_room(sid, room_id)
+                except Exception as e:
+                    logger.error(f"Error joining socket room: {e}")
+                    # ルーム参加に失敗してもゲームロジックは続行
                 
                 # Store player-room mapping
-                await self.sio.save_session(sid, {
-                    'player_id': player.id,
-                    'room_id': room_id
-                })
+                try:
+                    await events_instance.sio.save_session(sid, {
+                        'player_id': player.id,
+                        'room_id': room_id
+                    })
+                except Exception as e:
+                    logger.error(f"Error saving session: {e}")
                 
                 # Notify room about player (only if it's a new player or reconnection)
                 if existing_player:
-                    await self.sio.emit('player_reconnected', {
+                    await events_instance.sio.emit('player_reconnected', {
                         'playerName': player.name,
                         'playerId': player.id
                     }, room=room_id)
                 else:
-                    await self.sio.emit('player_joined', {
+                    await events_instance.sio.emit('player_joined', {
                         'playerName': player.name,
                         'playerId': player.id
                     }, room=room_id)
@@ -98,13 +116,13 @@ class GameSocketEvents:
                     if speaker:
                         current_speaker = speaker.name
                 
-                await self.sio.emit('room_state', {
+                await events_instance.sio.emit('room_state', {
                     'roomId': room.id,
                     'players': player_names,
                     'phase': room.phase,
                     'config': room.config.dict(),
                     'currentSpeaker': current_speaker
-                }, room=room_id)  # Send to all players in room, not just new player
+                }, room=room_id)
                 
                 # If there's an active round, send round data to new player
                 if room.current_round and room.phase == 'in_round':
@@ -117,7 +135,7 @@ class GameSocketEvents:
                     
                     choice_data = [{"id": choice.id, "name": choice.name_ja} for choice in voting_choices]
                     
-                    await self.sio.emit('round_start', {
+                    await events_instance.sio.emit('round_start', {
                         'roundId': room.current_round.id,
                         'phrase': room.current_round.phrase,
                         'speakerName': speaker.name if speaker else 'Unknown',
@@ -141,7 +159,7 @@ class GameSocketEvents:
                                     emotion_name = emotion_info.name_ja
                                     break
                         
-                        await self.sio.emit('speaker_emotion', {
+                        await events_instance.sio.emit('speaker_emotion', {
                             'roundId': room.current_round.id,
                             'emotionId': room.current_round.emotion_id,
                             'emotionName': emotion_name
@@ -151,7 +169,7 @@ class GameSocketEvents:
                 
             except Exception as e:
                 logger.error(f"Error in join_room: {e}", exc_info=True)
-                await self.sio.emit('error', {
+                await events_instance.sio.emit('error', {
                     'code': 'EMO-500',
                     'message': f'Internal server error: {str(e)}'
                 }, room=sid)
@@ -160,12 +178,12 @@ class GameSocketEvents:
         async def start_round(sid, data):
             """Start a new round (host only)"""
             try:
-                session = await self.sio.get_session(sid)
+                session = await events_instance.sio.get_session(sid)
                 room_id = session.get('room_id')
                 player_id = session.get('player_id')
                 
                 if not room_id or not player_id:
-                    await self.sio.emit('error', {
+                    await events_instance.sio.emit('error', {
                         'code': 'EMO-401',
                         'message': 'Not authenticated'
                     }, room=sid)
@@ -173,7 +191,7 @@ class GameSocketEvents:
                 
                 room = await state_store.get_room(room_id)
                 if not room:
-                    await self.sio.emit('error', {
+                    await events_instance.sio.emit('error', {
                         'code': 'EMO-404',
                         'message': 'Room not found'
                     }, room=sid)
@@ -181,7 +199,7 @@ class GameSocketEvents:
                 
                 player = room.players.get(player_id)
                 if not player or not player.is_host:
-                    await self.sio.emit('error', {
+                    await events_instance.sio.emit('error', {
                         'code': 'EMO-403',
                         'message': 'Only host can start rounds'
                     }, room=sid)
@@ -189,7 +207,7 @@ class GameSocketEvents:
                 
                 if room.phase != GamePhase.WAITING:
                     logger.warning(f"Room {room_id} is in phase {room.phase}, not WAITING. Refusing to start round.")
-                    await self.sio.emit('error', {
+                    await events_instance.sio.emit('error', {
                         'code': 'EMO-409',
                         'message': f'Room is not in waiting phase (current: {room.phase})'
                     }, room=sid)
@@ -197,7 +215,7 @@ class GameSocketEvents:
                 
                 # Check minimum player count (need at least 2 players: 1 speaker + 1 listener)
                 if len(room.players) < 2:
-                    await self.sio.emit('error', {
+                    await events_instance.sio.emit('error', {
                         'code': 'EMO-400',
                         'message': 'Need at least 2 players to start the game'
                     }, room=sid)
@@ -210,7 +228,7 @@ class GameSocketEvents:
                 # Get current speaker
                 speaker = room.get_current_speaker()
                 if not speaker:
-                    await self.sio.emit('error', {
+                    await events_instance.sio.emit('error', {
                         'code': 'EMO-400',
                         'message': 'No players available'
                     }, room=sid)
@@ -229,7 +247,7 @@ class GameSocketEvents:
                 
                 # Send updated room state to all players to sync phase first
                 player_names = [p.name for p in room.players.values()]
-                await self.sio.emit('room_state', {
+                await events_instance.sio.emit('room_state', {
                     'roomId': room.id,
                     'players': player_names,
                     'phase': room.phase,
@@ -247,7 +265,7 @@ class GameSocketEvents:
                 choice_data = [{"id": choice.id, "name": choice.name_ja} for choice in voting_choices]
                 
                 # Send round start to all players with voting choices
-                await self.sio.emit('round_start', {
+                await events_instance.sio.emit('round_start', {
                     'roundId': round_data.id,
                     'phrase': phrase,
                     'speakerName': speaker.name,
@@ -271,17 +289,21 @@ class GameSocketEvents:
                 
                 # Send emotion to speaker privately - find all speaker sessions
                 speaker_sids = []
-                for sid in self.sio.manager.get_participants(room_id, '/'):
-                    try:
-                        session = await self.sio.get_session(sid)
-                        if session.get('player_id') == speaker.id:
-                            speaker_sids.append(sid)
-                    except:
-                        continue
+                try:
+                    if hasattr(events_instance.sio, 'manager') and hasattr(events_instance.sio.manager, 'get_participants'):
+                        for sid_check in events_instance.sio.manager.get_participants(room_id, '/'):
+                            try:
+                                session = await events_instance.sio.get_session(sid_check)
+                                if session.get('player_id') == speaker.id:
+                                    speaker_sids.append(sid_check)
+                            except:
+                                continue
+                except Exception as e:
+                    logger.warning(f"Could not get participants for room {room_id}: {e}")
                 
                 # Send directly to each speaker session to ensure delivery
                 for speaker_sid in speaker_sids:
-                    await self.sio.emit('speaker_emotion', {
+                    await events_instance.sio.emit('speaker_emotion', {
                         'roundId': round_data.id,
                         'emotionId': emotion_id,
                         'emotionName': emotion_name,
@@ -289,7 +311,7 @@ class GameSocketEvents:
                     }, room=speaker_sid)
                 
                 # Also send to entire room as backup with speaker filter in frontend
-                await self.sio.emit('speaker_emotion', {
+                await events_instance.sio.emit('speaker_emotion', {
                     'roundId': round_data.id,
                     'emotionId': emotion_id,
                     'emotionName': emotion_name,
@@ -300,7 +322,7 @@ class GameSocketEvents:
                 
             except Exception as e:
                 logger.error(f"Error in start_round: {e}", exc_info=True)
-                await self.sio.emit('error', {
+                await events_instance.sio.emit('error', {
                     'code': 'EMO-500',
                     'message': f'Internal server error: {str(e)}'
                 }, room=sid)
@@ -309,12 +331,12 @@ class GameSocketEvents:
         async def leave_room(sid, data):
             """Handle player leaving a room"""
             try:
-                session = await self.sio.get_session(sid)
+                session = await events_instance.sio.get_session(sid)
                 room_id = session.get('room_id')
                 player_id = session.get('player_id')
                 
                 if not room_id or not player_id:
-                    await self.sio.emit('error', {
+                    await events_instance.sio.emit('error', {
                         'code': 'EMO-401',
                         'message': 'Not authenticated'
                     }, room=sid)
@@ -322,7 +344,7 @@ class GameSocketEvents:
                 
                 room = await state_store.get_room(room_id)
                 if not room or player_id not in room.players:
-                    await self.sio.emit('error', {
+                    await events_instance.sio.emit('error', {
                         'code': 'EMO-404',
                         'message': 'Room or player not found'
                     }, room=sid)
@@ -335,14 +357,23 @@ class GameSocketEvents:
                 del room.players[player_id]
                 await state_store.update_room(room)
                 
-                # Leave socket room
-                await self.sio.leave_room(sid, room_id)
+                # Leave socket room - 安全性チェックを追加
+                try:
+                    if hasattr(events_instance.sio, 'leave_room'):
+                        await events_instance.sio.leave_room(sid, room_id)
+                    else:
+                        logger.warning("leave_room method not available on sio instance")
+                except Exception as e:
+                    logger.error(f"Error leaving socket room: {e}")
                 
                 # Clear session
-                await self.sio.save_session(sid, {})
+                try:
+                    await events_instance.sio.save_session(sid, {})
+                except Exception as e:
+                    logger.error(f"Error clearing session: {e}")
                 
                 # Notify remaining players
-                await self.sio.emit('player_left', {
+                await events_instance.sio.emit('player_left', {
                     'playerName': player_name,
                     'playerId': player_id
                 }, room=room_id)
@@ -355,7 +386,7 @@ class GameSocketEvents:
                     if speaker:
                         current_speaker = speaker.name
                 
-                await self.sio.emit('room_state', {
+                await events_instance.sio.emit('room_state', {
                     'roomId': room.id,
                     'players': player_names,
                     'phase': room.phase,
@@ -364,7 +395,7 @@ class GameSocketEvents:
                 }, room=room_id)
                 
                 # Confirm to leaving player
-                await self.sio.emit('left_room', {
+                await events_instance.sio.emit('left_room', {
                     'message': 'Successfully left the room'
                 }, room=sid)
                 
@@ -372,7 +403,7 @@ class GameSocketEvents:
                 
             except Exception as e:
                 logger.error(f"Error in leave_room: {e}", exc_info=True)
-                await self.sio.emit('error', {
+                await events_instance.sio.emit('error', {
                     'code': 'EMO-500',
                     'message': f'Internal server error: {str(e)}'
                 }, room=sid)
@@ -381,12 +412,12 @@ class GameSocketEvents:
         async def restart_game(sid, data):
             """Restart the game (host only)"""
             try:
-                session = await self.sio.get_session(sid)
+                session = await events_instance.sio.get_session(sid)
                 room_id = session.get('room_id')
                 player_id = session.get('player_id')
                 
                 if not room_id or not player_id:
-                    await self.sio.emit('error', {
+                    await events_instance.sio.emit('error', {
                         'code': 'EMO-401',
                         'message': 'Not authenticated'
                     }, room=sid)
@@ -394,7 +425,7 @@ class GameSocketEvents:
                 
                 room = await state_store.get_room(room_id)
                 if not room:
-                    await self.sio.emit('error', {
+                    await events_instance.sio.emit('error', {
                         'code': 'EMO-404',
                         'message': 'Room not found'
                     }, room=sid)
@@ -402,7 +433,7 @@ class GameSocketEvents:
                 
                 player = room.players.get(player_id)
                 if not player or not player.is_host:
-                    await self.sio.emit('error', {
+                    await events_instance.sio.emit('error', {
                         'code': 'EMO-403',
                         'message': 'Only host can restart the game'
                     }, room=sid)
@@ -422,7 +453,7 @@ class GameSocketEvents:
                 
                 # Send updated room state to all players
                 player_names = [p.name for p in room.players.values()]
-                await self.sio.emit('room_state', {
+                await events_instance.sio.emit('room_state', {
                     'roomId': room.id,
                     'players': player_names,
                     'phase': room.phase,
@@ -434,7 +465,7 @@ class GameSocketEvents:
                 
             except Exception as e:
                 logger.error(f"Error in restart_game: {e}", exc_info=True)
-                await self.sio.emit('error', {
+                await events_instance.sio.emit('error', {
                     'code': 'EMO-500',
                     'message': f'Internal server error: {str(e)}'
                 }, room=sid)
@@ -443,7 +474,7 @@ class GameSocketEvents:
         async def submit_vote(sid, data):
             """Submit vote for current round"""
             try:
-                session = await self.sio.get_session(sid)
+                session = await events_instance.sio.get_session(sid)
                 room_id = session.get('room_id')
                 player_id = session.get('player_id')
                 
@@ -451,7 +482,7 @@ class GameSocketEvents:
                 emotion_id = data.get('emotionId')
                 
                 if not room_id or not player_id:
-                    await self.sio.emit('error', {
+                    await events_instance.sio.emit('error', {
                         'code': 'EMO-401',
                         'message': 'Not authenticated'
                     }, room=sid)
@@ -459,14 +490,14 @@ class GameSocketEvents:
                 
                 room = await state_store.get_room(room_id)
                 if not room or not room.current_round:
-                    await self.sio.emit('error', {
+                    await events_instance.sio.emit('error', {
                         'code': 'EMO-404',
                         'message': 'No active round'
                     }, room=sid)
                     return
                 
                 if room.current_round.id != round_id:
-                    await self.sio.emit('error', {
+                    await events_instance.sio.emit('error', {
                         'code': 'EMO-400',
                         'message': 'Invalid round ID'
                     }, room=sid)
@@ -474,7 +505,7 @@ class GameSocketEvents:
                 
                 # Don't allow speaker to vote
                 if room.current_round.speaker_id == player_id:
-                    await self.sio.emit('error', {
+                    await events_instance.sio.emit('error', {
                         'code': 'EMO-400',
                         'message': 'Speaker cannot vote'
                     }, room=sid)
@@ -494,7 +525,7 @@ class GameSocketEvents:
                 
                 if votes_received >= listener_count and listener_count > 0:
                     logger.info(f"All votes received, completing round in room {room_id}")
-                    await self._complete_round(room)
+                    await events_instance._complete_round(room)
                 else:
                     logger.info(f"Waiting for more votes: {votes_received}/{listener_count} in room {room_id}")
                 
@@ -502,7 +533,7 @@ class GameSocketEvents:
                 
             except Exception as e:
                 logger.error(f"Error in submit_vote: {e}", exc_info=True)
-                await self.sio.emit('error', {
+                await events_instance.sio.emit('error', {
                     'code': 'EMO-500',
                     'message': f'Internal server error: {str(e)}'
                 }, room=sid)

@@ -1,4 +1,4 @@
-import openai
+from openai import AsyncOpenAI
 from typing import List, Tuple
 import random
 from config import settings
@@ -6,8 +6,9 @@ from config import settings
 
 class LLMService:
     def __init__(self):
+        self.client = None
         if settings.OPENAI_API_KEY:
-            openai.api_key = settings.OPENAI_API_KEY
+            self.client = AsyncOpenAI(api_key=settings.OPENAI_API_KEY)
         
         # Fallback phrases for when LLM is unavailable
         self.fallback_phrases = [
@@ -47,7 +48,7 @@ class LLMService:
             emotion_name_en = selected_emotion['name_en']
             
             # Generate phrase with LLM
-            if settings.OPENAI_API_KEY:
+            if self.client:
                 phrase = await self._generate_phrase_with_openai(emotion_name, emotion_name_en)
             else:
                 phrase = random.choice(self.fallback_phrases)
@@ -80,8 +81,11 @@ class LLMService:
 台詞のみを出力してください:
 """
             
-            response = await openai.ChatCompletion.acreate(
-                model="gpt-4.1-mini",
+            if not self.client:
+                return random.choice(self.fallback_phrases)
+            
+            response = await self.client.chat.completions.create(
+                model="gpt-4o-mini",
                 messages=[
                     {"role": "system", "content": "あなたは日本語の台詞生成の専門家です。"},
                     {"role": "user", "content": prompt}
