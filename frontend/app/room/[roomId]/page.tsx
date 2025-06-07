@@ -611,7 +611,136 @@ export default function RoomPage({ params }: { params: { roomId: string } }) {
               </div>
 
               {isHost && (
-                <div className="space-y-3">
+                <div className="space-y-4">
+                  {/* Settings Section for Next Game */}
+                  <div className="bg-white p-4 rounded-lg border border-gray-200">
+                    <h4 className="font-semibold mb-3 text-center">次のゲーム設定</h4>
+                    
+                    {/* Current Settings Display */}
+                    <div className="bg-gray-50 p-3 rounded-lg mb-3">
+                      <h5 className="font-medium mb-2 text-sm">現在の設定</h5>
+                      <div className="grid grid-cols-2 gap-2 text-xs">
+                        <div>
+                          <span className="text-gray-600">感情モード:</span>
+                          <span className="ml-1">{roomState?.config.mode === 'basic' ? '基本 (4択)' : '応用 (8択)'}</span>
+                        </div>
+                        <div>
+                          <span className="text-gray-600">ラウンド数:</span>
+                          <span className="ml-1">{roomState?.config.max_rounds}周</span>
+                        </div>
+                        <div className="col-span-2">
+                          <span className="text-gray-600">発言順:</span>
+                          <span className="ml-1">{roomState?.config.speaker_order === 'sequential' ? '順番' : 'ランダム'}</span>
+                        </div>
+                      </div>
+                    </div>
+                    
+                    <button
+                      onClick={() => setShowSettings(!showSettings)}
+                      className="w-full px-3 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors text-sm"
+                    >
+                      ⚙️ 設定変更
+                    </button>
+                    
+                    {showSettings && (
+                      <div className="mt-3 p-3 border border-gray-200 rounded-lg bg-gray-50">
+                        {/* Game Mode */}
+                        <div className="mb-3">
+                          <label className="block text-xs font-medium text-gray-700 mb-1">
+                            感情モード
+                          </label>
+                          <div className="grid grid-cols-2 gap-1">
+                            <button
+                              type="button"
+                              onClick={() => setGameMode('basic')}
+                              className={`px-2 py-1 rounded text-xs font-medium transition-all ${
+                                gameMode === 'basic'
+                                  ? 'bg-blue-600 text-white'
+                                  : 'bg-white border border-gray-300 text-gray-700 hover:bg-gray-50'
+                              }`}
+                            >
+                              基本感情 (4択)
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => setGameMode('advanced')}
+                              className={`px-2 py-1 rounded text-xs font-medium transition-all ${
+                                gameMode === 'advanced'
+                                  ? 'bg-blue-600 text-white'
+                                  : 'bg-white border border-gray-300 text-gray-700 hover:bg-gray-50'
+                              }`}
+                            >
+                              応用感情 (8択)
+                            </button>
+                          </div>
+                        </div>
+
+                        {/* Max Rounds */}
+                        <div className="mb-3">
+                          <label htmlFor="maxRounds" className="block text-xs font-medium text-gray-700 mb-1">
+                            ラウンド数
+                          </label>
+                          <select
+                            id="maxRounds"
+                            value={maxRounds}
+                            onChange={(e) => setMaxRounds(Number(e.target.value))}
+                            className="w-full px-2 py-1 border border-gray-300 rounded text-xs focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-transparent"
+                          >
+                            {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map(num => (
+                              <option key={num} value={num}>{num}周</option>
+                            ))}
+                          </select>
+                        </div>
+
+                        {/* Speaker Order */}
+                        <div className="mb-3">
+                          <label className="block text-xs font-medium text-gray-700 mb-1">
+                            発言順
+                          </label>
+                          <div className="grid grid-cols-2 gap-1">
+                            <button
+                              type="button"
+                              onClick={() => setSpeakerOrder('sequential')}
+                              className={`px-2 py-1 rounded text-xs font-medium transition-all ${
+                                speakerOrder === 'sequential'
+                                  ? 'bg-blue-600 text-white'
+                                  : 'bg-white border border-gray-300 text-gray-700 hover:bg-gray-50'
+                              }`}
+                            >
+                              順番
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => setSpeakerOrder('random')}
+                              className={`px-2 py-1 rounded text-xs font-medium transition-all ${
+                                speakerOrder === 'random'
+                                  ? 'bg-blue-600 text-white'
+                                  : 'bg-white border border-gray-300 text-gray-700 hover:bg-gray-50'
+                              }`}
+                            >
+                              ランダム
+                            </button>
+                          </div>
+                        </div>
+
+                        <div className="flex gap-1">
+                          <button
+                            onClick={handleUpdateSettings}
+                            className="flex-1 bg-green-600 text-white py-1 px-2 rounded text-xs hover:bg-green-700 transition-colors"
+                          >
+                            設定を保存
+                          </button>
+                          <button
+                            onClick={() => setShowSettings(false)}
+                            className="flex-1 bg-gray-400 text-white py-1 px-2 rounded text-xs hover:bg-gray-500 transition-colors"
+                          >
+                            キャンセル
+                          </button>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                  
                   <button
                     onClick={() => {
                       setGameComplete(null);
