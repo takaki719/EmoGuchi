@@ -46,6 +46,7 @@ export interface Round {
 export interface RoundResult {
   round_id: string;
   correct_emotion: string;
+  correctEmotionId?: string;
   speaker_name: string;
   scores: { [playerName: string]: number };
   votes: { [playerName: string]: string };

@@ -506,9 +506,17 @@ export default function RoomPage({ params }: { params: { roomId: string } }) {
               )}
 
               {currentRound && !isCurrentSpeaker && playerVote && (
-                <div className="text-center bg-green-50 p-4 rounded-lg">
-                  <p className="text-green-800">投票完了！</p>
-                  <p className="text-green-600">他のプレイヤーを待っています...</p>
+                <div className="text-center space-y-3">
+                  <div className="bg-blue-50 p-4 rounded-lg border border-blue-200">
+                    <p className="text-blue-800 font-semibold mb-2">投票完了！</p>
+                    <div className="text-sm">
+                      <span className="text-blue-600">あなたの投票: </span>
+                      <span className="font-medium text-blue-800">
+                        {emotionChoices.find(e => e.id === playerVote)?.name || playerVote}
+                      </span>
+                    </div>
+                  </div>
+                  <p className="text-gray-600 text-sm">他のプレイヤーを待っています...</p>
                 </div>
               )}
             </div>
@@ -525,6 +533,45 @@ export default function RoomPage({ params }: { params: { roomId: string } }) {
                   <span className="font-semibold">スピーカー:</span> {lastResult.speaker_name}
                 </p>
               </div>
+
+              {/* Player's Vote Result */}
+              {lastResult.votes && lastResult.votes[playerName] && (
+                <div className={`p-4 rounded-lg border-2 ${
+                  (() => {
+                    const playerVotedEmotion = lastResult.votes[playerName];
+                    const correctEmotionId = lastResult.correctEmotionId;
+                    const isCorrect = correctEmotionId ? playerVotedEmotion === correctEmotionId : false;
+                    return isCorrect ? 'border-green-400 bg-green-50' : 'border-red-400 bg-red-50';
+                  })()
+                }`}>
+                  <div className="text-center">
+                    <p className="font-semibold mb-1">
+                      {(() => {
+                        const playerVotedEmotion = lastResult.votes[playerName];
+                        const correctEmotionId = lastResult.correctEmotionId;
+                        const isCorrect = correctEmotionId ? playerVotedEmotion === correctEmotionId : false;
+                        return isCorrect ? '🎉 正解！' : '❌ 不正解';
+                      })()}
+                    </p>
+                    <p className="text-sm">
+                      <span className="text-gray-600">あなたの投票: </span>
+                      <span className="font-medium">
+                        {emotionChoices.find(e => e.id === lastResult.votes[playerName])?.name || lastResult.votes[playerName]}
+                      </span>
+                    </p>
+                    {(() => {
+                      const playerVotedEmotion = lastResult.votes[playerName];
+                      const correctEmotionId = lastResult.correctEmotionId;
+                      const isCorrect = correctEmotionId ? playerVotedEmotion === correctEmotionId : false;
+                      if (isCorrect) {
+                        return <p className="text-green-700 text-sm mt-1">+1ポイント獲得！</p>;
+                      } else {
+                        return <p className="text-red-700 text-sm mt-1">今回はポイントなし</p>;
+                      }
+                    })()}
+                  </div>
+                </div>
+              )}
               
               <div>
                 <h3 className="font-semibold mb-2">現在のスコア:</h3>
