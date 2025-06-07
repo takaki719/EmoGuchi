@@ -246,13 +246,17 @@ export default function RoomPage({ params }: { params: { roomId: string } }) {
         </div>
 
         {/* Players */}
-        <div className="bg-white rounded-lg shadow-md p-6 mb-6">
-          <h2 className="text-lg font-semibold mb-4">プレイヤー ({roomState.players.length}名)</h2>
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+        <div className="bg-white rounded-lg shadow-md p-3 sm:p-6 mb-4 sm:mb-6">
+          <h2 className="text-base sm:text-lg font-semibold mb-3 sm:mb-4">プレイヤー ({roomState.players.length}名)</h2>
+          <div className={`grid gap-2 sm:gap-3 ${
+            roomState.players.length <= 4 ? 'grid-cols-2 sm:grid-cols-4' :
+            roomState.players.length <= 6 ? 'grid-cols-2 sm:grid-cols-3' :
+            'grid-cols-2 sm:grid-cols-3 lg:grid-cols-4'
+          }`}>
             {roomState.players.map((player, index) => (
               <div
                 key={player}
-                className={`p-3 rounded-lg border-2 ${
+                className={`p-2 sm:p-3 rounded-lg border-2 ${
                   player === playerName
                     ? 'border-blue-500 bg-blue-50'
                     : player === roomState.currentSpeaker
@@ -260,7 +264,7 @@ export default function RoomPage({ params }: { params: { roomId: string } }) {
                     : 'border-gray-200 bg-gray-50'
                 }`}
               >
-                <div className="text-sm font-medium">{player}</div>
+                <div className="text-xs sm:text-sm font-medium truncate" title={player}>{player}</div>
                 {player === playerName && (
                   <div className="text-xs text-blue-600">あなた</div>
                 )}
@@ -300,12 +304,15 @@ export default function RoomPage({ params }: { params: { roomId: string } }) {
 
                 {isHost && (
                   <div className="space-y-3">
-                    <button
-                      onClick={() => setShowSettings(!showSettings)}
-                      className="px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors"
-                    >
-                      ⚙️ 設定変更
-                    </button>
+                    {/* ゲーム開始前のみ設定変更ボタンを表示 */}
+                    {roomState.phase === 'waiting' && !lastResult && (
+                      <button
+                        onClick={() => setShowSettings(!showSettings)}
+                        className="px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors"
+                      >
+                        ⚙️ 設定変更
+                      </button>
+                    )}
                     
                     {showSettings && (
                       <div className="bg-gray-50 border border-gray-200 rounded-lg p-4 text-left">
@@ -405,17 +412,20 @@ export default function RoomPage({ params }: { params: { roomId: string } }) {
                       </div>
                     )}
                     
-                    <button
-                      onClick={handleStartRound}
-                      disabled={roomState.players.length < 2 || isStartingRound}
-                      className={`px-6 py-3 rounded-lg font-medium ${
-                        roomState.players.length < 2 || isStartingRound
-                          ? 'bg-gray-400 text-gray-600 cursor-not-allowed'
-                          : 'bg-green-600 text-white hover:bg-green-700'
-                      }`}
-                    >
-                      {isStartingRound ? '開始中...' : roomState.players.length < 2 ? '2人以上必要' : '🎮 ゲーム開始'}
-                    </button>
+                    {/* ゲーム開始前のみゲーム開始ボタンを表示 */}
+                    {roomState.phase === 'waiting' && !lastResult && (
+                      <button
+                        onClick={handleStartRound}
+                        disabled={roomState.players.length < 2 || isStartingRound}
+                        className={`px-6 py-3 rounded-lg font-medium ${
+                          roomState.players.length < 2 || isStartingRound
+                            ? 'bg-gray-400 text-gray-600 cursor-not-allowed'
+                            : 'bg-green-600 text-white hover:bg-green-700'
+                        }`}
+                      >
+                        {isStartingRound ? '開始中...' : roomState.players.length < 2 ? '2人以上必要' : '🎮 ゲーム開始'}
+                      </button>
+                    )}
                   </div>
                 )}
                 
@@ -478,17 +488,19 @@ export default function RoomPage({ params }: { params: { roomId: string } }) {
               )}
 
               {currentRound && !isCurrentSpeaker && !playerVote && (
-                <div className="space-y-4">
-                  <h3 className="font-semibold">感情を推測してください:</h3>
-                  <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-3 sm:space-y-4">
+                  <h3 className="font-semibold text-sm sm:text-base">感情を推測してください:</h3>
+                  <div className={`grid gap-2 sm:gap-3 ${
+                    emotionChoices.length <= 4 ? 'grid-cols-2' : 'grid-cols-2 sm:grid-cols-4'
+                  }`}>
                     {emotionChoices.map((emotion) => (
                       <button
                         key={emotion.id}
                         onClick={() => setSelectedEmotion(emotion.id)}
-                        className={`p-3 rounded-lg border-2 transition-colors ${
+                        className={`p-3 sm:p-4 rounded-lg border-2 transition-colors text-sm sm:text-base ${
                           selectedEmotion === emotion.id
-                            ? 'border-blue-500 bg-blue-50'
-                            : 'border-gray-200 hover:border-gray-300'
+                            ? 'border-blue-500 bg-blue-50 font-semibold'
+                            : 'border-gray-200 hover:border-gray-300 hover:bg-gray-50'
                         }`}
                       >
                         {emotion.name}
@@ -498,7 +510,7 @@ export default function RoomPage({ params }: { params: { roomId: string } }) {
                   <button
                     onClick={handleVote}
                     disabled={!selectedEmotion}
-                    className="w-full bg-green-600 text-white py-3 rounded-lg hover:bg-green-700 disabled:bg-gray-400 font-medium"
+                    className="w-full bg-green-600 text-white py-3 sm:py-4 rounded-lg hover:bg-green-700 disabled:bg-gray-400 font-medium text-sm sm:text-base"
                   >
                     投票する
                   </button>
