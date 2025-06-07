@@ -525,17 +525,9 @@ export default function RoomPage({ params }: { params: { roomId: string } }) {
           {lastResult && (
             <div className="space-y-4">
               <h2 className="text-xl font-semibold text-center">結果発表</h2>
-              <div className="bg-blue-50 p-4 rounded-lg">
-                <p className="text-center mb-2">
-                  <span className="font-semibold">正解:</span> {lastResult.correct_emotion}
-                </p>
-                <p className="text-center">
-                  <span className="font-semibold">スピーカー:</span> {lastResult.speaker_name}
-                </p>
-              </div>
 
               {/* Player's Vote Result */}
-              {lastResult.votes && lastResult.votes[playerName] && (
+              {lastResult.votes && lastResult.votes[playerName] ? (
                 <div className={`p-4 rounded-lg border-2 ${
                   (() => {
                     const playerVotedEmotion = lastResult.votes[playerName];
@@ -586,6 +578,16 @@ export default function RoomPage({ params }: { params: { roomId: string } }) {
                     })()}
                   </div>
                 </div>
+              ):(
+                // スピーカーの場合
+      <div className="bg-blue-50 p-6 rounded-lg text-center border border-blue-200">
+        <p className="text-lg font-semibold text-blue-700 mb-2">
+          あなたはスピーカーでした
+        </p>
+        <p className="text-xl font-bold">
+          正解: {lastResult.correct_emotion}
+        </p>
+      </div>
               )}
               
               <div>
