@@ -1,8 +1,12 @@
 # 🎭 EMOGUCHI - 音声演技 × 感情推定ゲーム
 
 リアルタイム音声演技と感情推定を楽しむパーティゲームです。
+
+開始画面
 <img width="1463" alt="image" src="https://github.com/user-attachments/assets/0b627c1d-87b8-429d-979a-a8f216777006" />
+ゲーム画面(スピーカー)
 <img width="931" alt="image" src="https://github.com/user-attachments/assets/eaa9a60e-f9c6-429d-82d8-3ab6293814da" />
+ゲーム画面(リスナー)
 <img width="918" alt="image" src="https://github.com/user-attachments/assets/691536fc-dc1a-444a-9fe4-0bcd32735eec" />
 
 
