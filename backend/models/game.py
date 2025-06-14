@@ -56,6 +56,7 @@ class Player(BaseModel):
     score: int = 0
     is_host: bool = False
     is_connected: bool = True
+    mac_address: Optional[str] = None
     joined_at: datetime = Field(default_factory=datetime.now)
 
 class RoomConfig(BaseModel):
@@ -68,12 +69,22 @@ class RoomConfig(BaseModel):
     class Config:
         use_enum_values = True
 
+class AudioRecording(BaseModel):
+    id: str = Field(default_factory=lambda: str(uuid.uuid4()))
+    round_id: str
+    speaker_id: str
+    audio_data: bytes
+    emotion_acted: str
+    duration_seconds: Optional[float] = None
+    created_at: datetime = Field(default_factory=datetime.now)
+
 class Round(BaseModel):
     id: str = Field(default_factory=lambda: str(uuid.uuid4()))
     phrase: str
     emotion_id: str
     speaker_id: str
     votes: Dict[str, str] = Field(default_factory=dict)  # player_id -> emotion_id
+    audio_recording_id: Optional[str] = None
     is_completed: bool = False
     started_at: datetime = Field(default_factory=datetime.now)
     completed_at: Optional[datetime] = None

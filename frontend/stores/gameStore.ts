@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import { RoomState, Round, RoundResult, Player, GameComplete } from '@/types/game';
+import { RoomState, Round, RoundResult, GameComplete } from '@/types/game';
 
 interface GameStore {
   // Room state
@@ -15,6 +15,11 @@ interface GameStore {
   lastResult: RoundResult | null;
   gameComplete: GameComplete | null;
   
+  // Audio state
+  audioRecording: Blob | null;
+  audioUrl: string | null;
+  recordingInProgress: boolean;
+  
   // UI state
   isLoading: boolean;
   error: string | null;
@@ -29,6 +34,9 @@ interface GameStore {
   setPlayerVote: (vote: string | null) => void;
   setLastResult: (result: RoundResult | null) => void;
   setGameComplete: (gameComplete: GameComplete | null) => void;
+  setAudioRecording: (recording: Blob | null) => void;
+  setAudioUrl: (url: string | null) => void;
+  setRecordingInProgress: (inProgress: boolean) => void;
   setLoading: (loading: boolean) => void;
   setError: (error: string | null) => void;
   reset: () => void;
@@ -45,6 +53,9 @@ export const useGameStore = create<GameStore>((set) => ({
   playerVote: null,
   lastResult: null,
   gameComplete: null,
+  audioRecording: null,
+  audioUrl: null,
+  recordingInProgress: false,
   isLoading: false,
   error: null,
   
@@ -58,6 +69,9 @@ export const useGameStore = create<GameStore>((set) => ({
   setPlayerVote: (vote) => set({ playerVote: vote }),
   setLastResult: (result) => set({ lastResult: result }),
   setGameComplete: (gameComplete) => set({ gameComplete }),
+  setAudioRecording: (recording) => set({ audioRecording: recording }),
+  setAudioUrl: (url) => set({ audioUrl: url }),
+  setRecordingInProgress: (inProgress) => set({ recordingInProgress: inProgress }),
   setLoading: (loading) => set({ isLoading: loading }),
   setError: (error) => set({ error }),
   reset: () => set({
@@ -70,6 +84,9 @@ export const useGameStore = create<GameStore>((set) => ({
     playerVote: null,
     lastResult: null,
     gameComplete: null,
+    audioRecording: null,
+    audioUrl: null,
+    recordingInProgress: false,
     isLoading: false,
     error: null,
   }),

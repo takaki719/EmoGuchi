@@ -77,6 +77,7 @@ export interface SocketEvents {
   submit_vote: (data: { roundId: string; emotionId: string }) => void;
   leave_room: (data: {}) => void;
   restart_game: (data: {}) => void;
+  audio_send: (data: { audio: ArrayBuffer }) => void;
 
   // Server to Client
   connected: (data: { message: string }) => void;
@@ -90,5 +91,6 @@ export interface SocketEvents {
   speaker_emotion: (data: { roundId: string; emotionId: string; emotionName?: string }) => void;
   round_result: (data: RoundResult) => void;
   game_complete: (data: GameComplete) => void;
+  audio_received: (data: { audio: ArrayBuffer; speaker_name: string }) => void;
   error: (data: { code: string; message: string }) => void;
 }

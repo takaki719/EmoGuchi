@@ -14,12 +14,16 @@ class SocketClient {
       return this.socket as Socket<SocketEvents>;
     }
 
+    console.log('🔌 Creating socket connection to:', this.url);
+    
     this.socket = io(this.url, {
       transports: ['polling', 'websocket'],
       autoConnect: true,
       timeout: 20000,
       forceNew: true,
     });
+
+    console.log('🔌 Socket created:', this.socket);
 
     this.socket.on('connect', () => {
       console.log('Connected to server');

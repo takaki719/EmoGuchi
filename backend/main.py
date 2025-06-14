@@ -26,11 +26,16 @@ sio = socketio.AsyncServer(
     async_mode="asgi",
     cors_allowed_origins=settings.ALLOWED_ORIGINS,
     logger=True,
-    engineio_logger=True
+    engineio_logger=True,
+    max_http_buffer_size=10 * 1024 * 1024  # 10MB for audio data
 )
 
 # Setup Socket.IO events
 game_events = GameSocketEvents(sio)
+
+# Add simple audio handling
+from simple_audio import setup_simple_audio_events
+setup_simple_audio_events(sio)
 
 # Include API routers
 app.include_router(rooms.router)

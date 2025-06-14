@@ -1,6 +1,6 @@
 from abc import ABC, abstractmethod
 from typing import Dict, Optional
-from models.game import Room
+from models.game import Room, AudioRecording
 
 class StateStore(ABC):
     """Abstract state store for room management"""
@@ -25,11 +25,24 @@ class StateStore(ABC):
     async def list_rooms(self) -> Dict[str, Room]:
         pass
 
+    @abstractmethod
+    async def save_audio_recording(self, recording: AudioRecording) -> None:
+        pass
+    
+    @abstractmethod
+    async def get_audio_recording(self, recording_id: str) -> Optional[AudioRecording]:
+        pass
+    
+    @abstractmethod
+    async def delete_audio_recording(self, recording_id: str) -> None:
+        pass
+
 class MemoryStateStore(StateStore):
     """In-memory implementation of state store"""
     
     def __init__(self):
         self._rooms: Dict[str, Room] = {}
+        self._audio_recordings: Dict[str, AudioRecording] = {}
     
     async def create_room(self, room: Room) -> None:
         self._rooms[room.id] = room
@@ -45,6 +58,15 @@ class MemoryStateStore(StateStore):
     
     async def list_rooms(self) -> Dict[str, Room]:
         return self._rooms.copy()
+    
+    async def save_audio_recording(self, recording: AudioRecording) -> None:
+        self._audio_recordings[recording.id] = recording
+    
+    async def get_audio_recording(self, recording_id: str) -> Optional[AudioRecording]:
+        return self._audio_recordings.get(recording_id)
+    
+    async def delete_audio_recording(self, recording_id: str) -> None:
+        self._audio_recordings.pop(recording_id, None)
 
 # Global instance
 state_store = MemoryStateStore()

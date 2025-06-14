@@ -6,6 +6,16 @@ import { useSocket } from '@/hooks/useSocket';
 import { useGameStore } from '@/stores/gameStore';
 import { useLocaleStore } from '@/stores/localeStore';
 import { translations } from '@/lib/translations';
+import { AudioRecorder } from '@/components/AudioRecorder';
+import { AudioPlayer } from '@/components/AudioPlayer';
+import { SocketDebugger } from '@/components/SocketDebugger';
+import { ConnectionDebugger } from '@/components/ConnectionDebugger';
+import { SimpleTest } from '@/components/SimpleTest';
+import { ManualSocketTest } from '@/components/ManualSocketTest';
+import { BasicDebug } from '@/components/BasicDebug';
+import { DirectSocketTest } from '@/components/DirectSocketTest';
+import { BackendTester } from '@/components/BackendTester';
+import { DirectAudioTest } from '@/components/DirectAudioTest';
 
 export default function RoomPage({ params }: { params: { roomId: string } }) {
   const searchParams = useSearchParams();
@@ -14,7 +24,7 @@ export default function RoomPage({ params }: { params: { roomId: string } }) {
   
   const { roomId: encodedRoomId } = params;
   const roomId = decodeURIComponent(encodedRoomId);
-  const { joinRoom, startRound, submitVote, leaveRoom, restartGame, isConnected } = useSocket();
+  const { joinRoom, startRound, submitVote, leaveRoom, restartGame, sendAudio, isConnected } = useSocket();
   const {
     roomState,
     currentRound,
@@ -23,10 +33,13 @@ export default function RoomPage({ params }: { params: { roomId: string } }) {
     lastResult,
     gameComplete,
     error,
+    audioUrl,
     setPlayerName,
     setPlayerVote,
     setGameComplete,
-    setLastResult
+    setLastResult,
+    setAudioRecording,
+    setAudioUrl
   } = useGameStore();
 
   const [selectedEmotion, setSelectedEmotion] = useState('');
@@ -103,6 +116,15 @@ export default function RoomPage({ params }: { params: { roomId: string } }) {
         window.location.href = '/';
       }, 1000);
     }
+  };
+
+  const handleAudioRecording = (audioBlob: Blob) => {
+    console.log('🎤 handleAudioRecording called with blob:', audioBlob);
+    console.log('Blob size:', audioBlob.size, 'type:', audioBlob.type);
+    
+    setAudioRecording(audioBlob);
+    sendAudio(audioBlob);
+    console.log('📤 Audio sent to server via sendAudio function');
   };
 
   const handleUpdateSettings = async () => {
@@ -207,10 +229,11 @@ export default function RoomPage({ params }: { params: { roomId: string } }) {
   }
 
   return (
-    <div className="min-h-screen p-2 sm:p-4">
-      <div className="max-w-4xl mx-auto">
-        {/* Header */}
-        <div className="bg-white rounded-lg shadow-md p-3 sm:p-6 mb-4 sm:mb-6">
+    <>
+      <div className="min-h-screen p-2 sm:p-4">
+        <div className="max-w-4xl mx-auto">
+          {/* Header */}
+          <div className="bg-white rounded-lg shadow-md p-3 sm:p-6 mb-4 sm:mb-6">
           <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 sm:gap-0">
             <div className="w-full sm:w-auto">
               <h1 className="text-xl sm:text-2xl font-bold text-gray-800">🎭 EMOGUCHI</h1>
@@ -451,9 +474,20 @@ export default function RoomPage({ params }: { params: { roomId: string } }) {
                       <div className="bg-gray-50 p-4 rounded-lg">
                         <p className="text-lg">{currentRound.phrase}</p>
                       </div>
-                      <p className="text-sm text-gray-600 mt-2">
-                        {t.game.listenAndGuess}
-                      </p>
+                      <div className="mt-4">
+                        {audioUrl ? (
+                          <AudioPlayer 
+                            audioUrl={audioUrl} 
+                            speakerName={currentRound.speaker_name}
+                          />
+                        ) : (
+                          <div className="bg-gray-100 p-4 rounded-lg border-2 border-gray-300">
+                            <p className="text-gray-600 text-center">
+                              📢 スピーカーの音声を待っています...
+                            </p>
+                          </div>
+                        )}
+                      </div>
                     </div>
                   ) : (
                     // スピーカー向けの表示
@@ -478,6 +512,17 @@ export default function RoomPage({ params }: { params: { roomId: string } }) {
                         <p className="text-sm text-orange-700 mt-4 font-medium">
                           {t.game.speakerInstructions}
                         </p>
+                      </div>
+                      <div className="mt-6">
+                        <AudioRecorder 
+                          onRecordingComplete={handleAudioRecording}
+                          disabled={false}
+                        />
+                        {!speakerEmotion && (
+                          <p className="text-sm text-orange-600 mt-2">
+                            ⚠️ 感情情報を受信中... (録音は有効です)
+                          </p>
+                        )}
                       </div>
                     </div>
                   )}
@@ -714,7 +759,8 @@ export default function RoomPage({ params }: { params: { roomId: string } }) {
             </div>
           )}
         </div>
+        </div>
       </div>
-    </div>
+    </>
   );
 }
