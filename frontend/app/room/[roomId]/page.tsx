@@ -48,7 +48,7 @@ export default function RoomPage({ params }: { params: { roomId: string } }) {
   const [isStartingRound, setIsStartingRound] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
   const [gameMode, setGameMode] = useState<'basic' | 'advanced' | 'wheel'>('basic');
-  const [maxRounds, setMaxRounds] = useState(3);
+  const [maxRounds, setMaxRounds] = useState(1);
   const [speakerOrder, setSpeakerOrder] = useState<'sequential' | 'random'>('sequential');
   const { locale } = useLocaleStore();
   const t = translations[locale];
@@ -126,6 +126,25 @@ export default function RoomPage({ params }: { params: { roomId: string } }) {
     setAudioRecording(audioBlob);
     sendAudio(audioBlob);
     console.log('📤 Audio sent to server via sendAudio function');
+  };
+
+  // Helper function to get emotion name by ID for wheel mode
+  const getEmotionNameById = (emotionId: string): string => {
+    if (roomState?.config?.vote_type === 'wheel') {
+      // For wheel mode, import emotions from EmotionWheel3Layer
+      const { PLUTCHIK_EMOTIONS_3_LAYER } = require('@/components/EmotionWheel3Layer');
+      const emotion = PLUTCHIK_EMOTIONS_3_LAYER.find((e: any) => e.id === emotionId);
+      if (emotion) {
+        return `${emotion.nameJa} (${emotion.nameEn})`;
+      }
+    } else {
+      // For choice modes, use emotionChoices
+      const emotion = emotionChoices.find(e => e.id === emotionId);
+      if (emotion) {
+        return emotion.name;
+      }
+    }
+    return emotionId; // fallback
   };
 
   const handleUpdateSettings = async () => {
@@ -325,8 +344,8 @@ export default function RoomPage({ params }: { params: { roomId: string } }) {
                         </span>
                       </div>
                       <div>
-                        <span className="text-gray-600">{t.home.maxRounds}:</span>
-                        <span className="ml-2">{roomState.config.max_rounds}{t.home.rounds}</span>
+                        <span className="text-gray-600">最大サイクル数:</span>
+                        <span className="ml-2">{roomState.config.max_rounds}サイクル</span>
                       </div>
                       <div>
                         <span className="text-gray-600">{t.home.speakerOrder}:</span>
@@ -387,7 +406,7 @@ export default function RoomPage({ params }: { params: { roomId: string } }) {
                                   : 'bg-white border border-gray-300 text-gray-700 hover:bg-gray-50'
                               }`}
                             >
-                              3層感情の輪
+                              感情の輪
                             </button>
                           </div>
                         </div>
@@ -395,7 +414,7 @@ export default function RoomPage({ params }: { params: { roomId: string } }) {
                         {/* Max Rounds */}
                         <div className="mb-4">
                           <label htmlFor="maxRounds" className="block text-sm font-medium text-gray-700 mb-2">
-                            {t.home.maxRounds}
+                            最大サイクル数
                           </label>
                           <select
                             id="maxRounds"
@@ -403,8 +422,8 @@ export default function RoomPage({ params }: { params: { roomId: string } }) {
                             onChange={(e) => setMaxRounds(Number(e.target.value))}
                             className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                           >
-                            {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map(num => (
-                              <option key={num} value={num}>{num}{t.home.rounds}</option>
+                            {[1, 2, 3, 4, 5].map(num => (
+                              <option key={num} value={num}>{num}サイクル</option>
                             ))}
                           </select>
                         </div>
@@ -461,14 +480,17 @@ export default function RoomPage({ params }: { params: { roomId: string } }) {
                     {roomState.phase === 'waiting' && !lastResult && (
                       <button
                         onClick={handleStartRound}
-                        disabled={roomState.players.length < 2 || isStartingRound}
+                        disabled={roomState.players.length < 2 || isStartingRound || showSettings}
                         className={`px-6 py-3 rounded-lg font-medium ${
-                          roomState.players.length < 2 || isStartingRound
+                          roomState.players.length < 2 || isStartingRound || showSettings
                             ? 'bg-gray-400 text-gray-600 cursor-not-allowed'
                             : 'bg-green-600 text-white hover:bg-green-700'
                         }`}
                       >
-                        {isStartingRound ? t.game.starting : roomState.players.length < 2 ? t.game.minimumPlayers : `🎮 ${t.game.gameStart}`}
+                        {isStartingRound ? t.game.starting : 
+                         showSettings ? '設定変更中...' :
+                         roomState.players.length < 2 ? t.game.minimumPlayers : 
+                         `🎮 ${t.game.gameStart}`}
                       </button>
                     )}
                   </div>
@@ -519,40 +541,16 @@ export default function RoomPage({ params }: { params: { roomId: string } }) {
                             <p className="text-xl font-medium text-orange-900 bg-white p-3 rounded border">{currentRound.phrase}</p>
                           </div>
                           
-                          {/* Wheel mode: Let speaker choose emotion */}
-                          {roomState?.config?.vote_type === 'wheel' ? (
+                          {/* Show assigned emotion for all modes */}
+                          {speakerEmotion && (
                             <div>
-                              <h4 className="font-semibold text-orange-700 mb-2">演技したい感情を選択してください</h4>
-                              <div className="flex justify-center">
-                                <EmotionWheel3Layer
-                                  selectedEmotion={selectedEmotion}
-                                  onEmotionSelect={setSelectedEmotion}
-                                  size={300}
-                                />
-                              </div>
-                              {selectedEmotion && (
-                                <div className="mt-4">
-                                  <p className="text-sm text-orange-700 font-medium">
-                                    選択された感情で演技してください
-                                  </p>
-                                </div>
-                              )}
+                              <h4 className="font-semibold text-orange-700 mb-1">{t.game.emotion}</h4>
+                              <p className="text-lg font-medium text-orange-900 bg-white p-3 rounded border">{speakerEmotion}</p>
                             </div>
-                          ) : (
-                            // Traditional modes: Show assigned emotion
-                            speakerEmotion && (
-                              <div>
-                                <h4 className="font-semibold text-orange-700 mb-1">{t.game.emotion}</h4>
-                                <p className="text-lg font-medium text-orange-900 bg-white p-3 rounded border">{speakerEmotion}</p>
-                              </div>
-                            )
                           )}
                         </div>
                         <p className="text-sm text-orange-700 mt-4 font-medium">
-                          {roomState?.config?.vote_type === 'wheel' ? 
-                            '感情を選択して、その感情で与えられたセリフを読み上げてください' :
-                            t.game.speakerInstructions
-                          }
+                          {t.game.speakerInstructions}
                         </p>
                       </div>
                       <div className="mt-6">
@@ -560,18 +558,10 @@ export default function RoomPage({ params }: { params: { roomId: string } }) {
                           onRecordingComplete={handleAudioRecording}
                           disabled={false}
                         />
-                        {roomState?.config?.vote_type === 'wheel' ? (
-                          !selectedEmotion && (
-                            <p className="text-sm text-orange-600 mt-2">
-                              ⚠️ 演技したい感情を選択してください
-                            </p>
-                          )
-                        ) : (
-                          !speakerEmotion && (
-                            <p className="text-sm text-orange-600 mt-2">
-                              ⚠️ 感情情報を受信中... (録音は有効です)
-                            </p>
-                          )
+                        {!speakerEmotion && (
+                          <p className="text-sm text-orange-600 mt-2">
+                            ⚠️ 感情情報を受信中... (録音は有効です)
+                          </p>
                         )}
                       </div>
                     </div>
@@ -640,7 +630,7 @@ export default function RoomPage({ params }: { params: { roomId: string } }) {
                     <div className="text-sm">
                       <span className="text-blue-600">{t.game.yourVote}: </span>
                       <span className="font-medium text-blue-800">
-                        {emotionChoices.find(e => e.id === playerVote)?.name || playerVote}
+                        {getEmotionNameById(playerVote)}
                       </span>
                     </div>
                   </div>
@@ -683,7 +673,7 @@ export default function RoomPage({ params }: { params: { roomId: string } }) {
                       <p className="text-sm">
                         <span className="text-gray-600">{t.game.yourVoteLabel} </span>
                         <span className="font-medium">
-                          {emotionChoices.find(e => e.id === lastResult.votes[playerName])?.name || lastResult.votes[playerName]}
+                          {getEmotionNameById(lastResult.votes[playerName])}
                         </span>
                       </p>
                       <p className="text-sm">
@@ -731,9 +721,6 @@ export default function RoomPage({ params }: { params: { roomId: string } }) {
 
               {isHost && !lastResult.isGameComplete && (
                 <div className="space-y-2">
-                  <div className="text-center text-sm text-gray-600 mb-2">
-                    {t.game.roundProgress} {(lastResult.completedRounds || 0)}/{lastResult.maxRounds || roomState?.config?.max_rounds || 3}
-                  </div>
                   <button
                     onClick={handleStartRound}
                     disabled={isStartingRound}
@@ -754,7 +741,7 @@ export default function RoomPage({ params }: { params: { roomId: string } }) {
                     {t.game.gameEndEmoji}
                   </h3>
                   <p className="text-yellow-700">
-                    {lastResult.completedRounds}/{lastResult.maxRounds}{t.game.roundsCompleted}
+                    {lastResult.completedCycles || Math.floor((lastResult.completedRounds || 0) / roomState.players.length)}/{lastResult.maxCycles || lastResult.maxRounds}{t.game.cyclesCompleted}
                   </p>
                 </div>
               )}

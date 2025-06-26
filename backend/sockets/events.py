@@ -147,19 +147,28 @@ class GameSocketEvents:
                     # If the new player is the speaker, send them the emotion
                     if room.current_round.speaker_id == player.id:
                         # Get emotion name for display
-                        from models.emotion import BASIC_EMOTIONS, ADVANCED_EMOTIONS
                         emotion_name = room.current_round.emotion_id  # fallback
                         
-                        # Try to find emotion name
-                        for emotion_info in BASIC_EMOTIONS.values():
-                            if emotion_info.id == room.current_round.emotion_id:
-                                emotion_name = emotion_info.name_ja
-                                break
+                        if room.config.vote_type == "wheel":
+                            # For wheel mode, use 3-layer emotions
+                            from models.emotion_3_layer import EMOTIONS_3_LAYER
+                            emotion_data = EMOTIONS_3_LAYER.get(room.current_round.emotion_id)
+                            if emotion_data:
+                                emotion_name = f"{emotion_data.name_ja} ({emotion_data.name_en})"
                         else:
-                            for emotion_info in ADVANCED_EMOTIONS.values():
+                            # For traditional modes
+                            from models.emotion import BASIC_EMOTIONS, ADVANCED_EMOTIONS
+                            
+                            # Try to find emotion name
+                            for emotion_info in BASIC_EMOTIONS.values():
                                 if emotion_info.id == room.current_round.emotion_id:
                                     emotion_name = emotion_info.name_ja
                                     break
+                            else:
+                                for emotion_info in ADVANCED_EMOTIONS.values():
+                                    if emotion_info.id == room.current_round.emotion_id:
+                                        emotion_name = emotion_info.name_ja
+                                        break
                         
                         await events_instance.sio.emit('speaker_emotion', {
                             'roundId': room.current_round.id,
@@ -279,13 +288,12 @@ class GameSocketEvents:
                 # Get emotion name for display
                 emotion_name = emotion_id  # fallback
                 
-                if room.config.mode == "wheel":
+                if room.config.vote_type == "wheel":
                     # For wheel mode, use 3-layer emotions
                     from models.emotion_3_layer import EMOTIONS_3_LAYER
                     emotion_data = EMOTIONS_3_LAYER.get(emotion_id)
                     if emotion_data:
-                        intensity_ja = {'weak': '弱', 'medium': '中', 'strong': '強'}[emotion_data.intensity]
-                        emotion_name = f"{emotion_data.name_ja} ({emotion_data.name_en}) - {intensity_ja}"
+                        emotion_name = f"{emotion_data.name_ja} ({emotion_data.name_en})"
                 else:
                     # For traditional modes
                     from models.emotion import BASIC_EMOTIONS, ADVANCED_EMOTIONS
@@ -639,13 +647,12 @@ class GameSocketEvents:
             # Get emotion name for display
             correct_emotion_name = correct_emotion  # fallback
             
-            if room.config.mode == "wheel":
+            if room.config.vote_type == "wheel":
                 # For wheel mode, use 3-layer emotions
                 from models.emotion_3_layer import EMOTIONS_3_LAYER
                 emotion_data = EMOTIONS_3_LAYER.get(correct_emotion)
                 if emotion_data:
-                    intensity_ja = {'weak': '弱', 'medium': '中', 'strong': '強'}[emotion_data.intensity]
-                    correct_emotion_name = f"{emotion_data.name_ja} ({emotion_data.name_en}) - {intensity_ja}"
+                    correct_emotion_name = f"{emotion_data.name_ja} ({emotion_data.name_en})"
             else:
                 # For traditional modes
                 from models.emotion import BASIC_EMOTIONS, ADVANCED_EMOTIONS
@@ -661,9 +668,12 @@ class GameSocketEvents:
                             correct_emotion_name = emotion_info.name_ja
                             break
             
-            # Check if game should end (reached max rounds)
+            # Check if game should end (reached max cycles)
+            # One cycle = all players speak once
             completed_rounds = len(room.round_history)
-            is_game_complete = completed_rounds >= room.config.max_rounds
+            total_players = len([p for p in room.players.values() if p.is_connected])
+            completed_cycles = completed_rounds // total_players if total_players > 0 else 0
+            is_game_complete = completed_cycles >= room.config.max_rounds
             
             await self.sio.emit('round_result', {
                 'round_id': round_data.id,
@@ -674,7 +684,9 @@ class GameSocketEvents:
                 'votes': {room.players[pid].name: emotion for pid, emotion in round_data.votes.items()},
                 'isGameComplete': is_game_complete,
                 'completedRounds': completed_rounds,
-                'maxRounds': room.config.max_rounds
+                'maxRounds': room.config.max_rounds,
+                'completedCycles': completed_cycles,
+                'maxCycles': room.config.max_rounds
             }, room=room.id)
             
             # If game is complete, send final rankings
@@ -692,7 +704,8 @@ class GameSocketEvents:
                 
                 await self.sio.emit('game_complete', {
                     'rankings': final_rankings,
-                    'totalRounds': completed_rounds
+                    'totalRounds': completed_rounds,
+                    'totalCycles': completed_cycles
                 }, room=room.id)
                 
                 # Transition to a completed state briefly, then waiting

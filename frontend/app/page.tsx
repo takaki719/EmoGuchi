@@ -21,7 +21,7 @@ export default function Home() {
         mode: 'basic',
         vote_type: '4choice',
         speaker_order: 'sequential',
-        max_rounds: 3,
+        max_rounds: 1,
       };
       
       // Add custom room ID if provided

@@ -54,6 +54,8 @@ export interface RoundResult {
   isGameComplete?: boolean;
   completedRounds?: number;
   maxRounds?: number;
+  completedCycles?: number;
+  maxCycles?: number;
 }
 
 export interface GameComplete {
@@ -63,6 +65,7 @@ export interface GameComplete {
     rank: number;
   }>;
   totalRounds: number;
+  totalCycles?: number;
 }
 
 export interface EmotionChoice {

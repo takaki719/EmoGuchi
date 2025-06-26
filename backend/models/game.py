@@ -68,7 +68,7 @@ class RoomConfig(BaseModel):
     vote_type: VoteType = VoteType.FOUR_CHOICE
     speaker_order: SpeakerOrder = SpeakerOrder.SEQUENTIAL
     vote_timeout: int = 30  # seconds
-    max_rounds: int = 3  # Number of rounds (turns) to play
+    max_rounds: int = 1  # Number of rounds (turns) to play
     
     class Config:
         use_enum_values = True
@@ -125,7 +125,7 @@ class CreateRoomRequest(BaseModel):
     mode: GameMode = GameMode.BASIC
     vote_type: VoteType = VoteType.FOUR_CHOICE
     speaker_order: SpeakerOrder = SpeakerOrder.SEQUENTIAL
-    max_rounds: int = 3  # Number of rounds (turns) to play
+    max_rounds: int = 1  # Number of rounds (turns) to play
     room_id: Optional[str] = None  # Custom room ID/passphrase
 
 class CreateRoomResponse(BaseModel):

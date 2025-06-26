@@ -33,11 +33,11 @@ export default function EmotionWheel3Layer({
   const getRadiusForIntensity = (intensity: IntensityLevel): { inner: number; outer: number } => {
     switch (intensity) {
       case 'strong':
-        return { inner: middleRadius, outer: outerRadius };
+        return { inner: centerRadius, outer: innerRadius };
       case 'medium':
         return { inner: innerRadius, outer: middleRadius };
       case 'weak':
-        return { inner: centerRadius, outer: innerRadius };
+        return { inner: middleRadius, outer: outerRadius };
       default:
         return { inner: centerRadius, outer: innerRadius };
     }
@@ -69,14 +69,6 @@ export default function EmotionWheel3Layer({
     return { x, y };
   };
 
-  const getEmojiPosition = (emotion: PlutchikEmotion) => {
-    const radii = getRadiusForIntensity(emotion.intensity);
-    const emojiRadius = radii.outer * 0.85;
-    const angle = emotion.angle * Math.PI / 180;
-    const x = centerX + emojiRadius * Math.cos(angle);
-    const y = centerY + emojiRadius * Math.sin(angle);
-    return { x, y };
-  };
 
   const handleEmotionClick = (emotionId: string) => {
     if (!disabled && onEmotionSelect) {
@@ -84,9 +76,9 @@ export default function EmotionWheel3Layer({
     }
   };
 
-  const handleAxisHover = (emotion: PlutchikEmotion, event: React.MouseEvent) => {
+  const handleEmotionHover = (emotion: PlutchikEmotion, event: React.MouseEvent) => {
     if (!disabled) {
-      setHoveredAxis(emotion.axis);
+      setHoveredAxis(emotion.id); // Store emotion ID instead of axis
       setShowTooltip(true);
       setTooltipPosition({ x: event.clientX, y: event.clientY });
     }
@@ -100,32 +92,20 @@ export default function EmotionWheel3Layer({
   const isSelected = (emotionId: string) => selectedEmotion === emotionId;
   const isHovered = (emotionId: string) => hoveredEmotion === emotionId;
 
-  // Get font size based on intensity level
+  // Get font size based on intensity level - larger fonts since no emojis
   const getFontSize = (intensity: IntensityLevel) => {
     switch (intensity) {
       case 'strong':
-        return size * 0.025;
+        return size * 0.035;
       case 'medium':
-        return size * 0.028;
+        return size * 0.035;
       case 'weak':
-        return size * 0.032;
+        return size * 0.030;
       default:
-        return size * 0.028;
+        return size * 0.035;
     }
   };
 
-  const getEmojiFontSize = (intensity: IntensityLevel) => {
-    switch (intensity) {
-      case 'strong':
-        return size * 0.045;
-      case 'medium':
-        return size * 0.05;
-      case 'weak':
-        return size * 0.055;
-      default:
-        return size * 0.05;
-    }
-  };
 
   const selectedEmotionData = selectedEmotion ? 
     PLUTCHIK_EMOTIONS_3_LAYER.find(e => e.id === selectedEmotion) : null;
@@ -156,7 +136,6 @@ export default function EmotionWheel3Layer({
 
         {PLUTCHIK_EMOTIONS_3_LAYER.map((emotion) => {
           const textPos = getTextPosition(emotion);
-          const emojiPos = getEmojiPosition(emotion);
           const selected = isSelected(emotion.id);
           const hovered = isHovered(emotion.id);
 
@@ -173,7 +152,7 @@ export default function EmotionWheel3Layer({
                 onMouseEnter={(e) => {
                   if (!disabled) {
                     setHoveredEmotion(emotion.id);
-                    handleAxisHover(emotion, e);
+                    handleEmotionHover(emotion, e);
                   }
                 }}
                 onMouseLeave={() => {
@@ -183,57 +162,37 @@ export default function EmotionWheel3Layer({
                 className={`${!disabled ? 'hover:opacity-95 transition-all duration-200' : ''}`}
               />
               
-              {/* Text label - show for medium intensity or when selected/hovered */}
-              {(emotion.intensity === 'medium' || selected || hovered) && (
-                <text
-                  x={textPos.x}
-                  y={textPos.y}
-                  textAnchor="middle"
-                  dominantBaseline="middle"
-                  fontSize={getFontSize(emotion.intensity)}
-                  fontWeight={selected ? 'bold' : 'normal'}
-                  fill={selected ? '#000' : hovered ? '#000' : '#333'}
-                  stroke={selected || hovered ? '#fff' : 'none'}
-                  strokeWidth={selected || hovered ? '0.5' : '0'}
-                  pointerEvents="none"
-                  className="select-none"
-                  style={{
-                    filter: selected || hovered ? 'drop-shadow(1px 1px 2px rgba(0,0,0,0.5))' : 'none'
-                  }}
-                >
-                  {emotion.nameJa}
-                </text>
-              )}
-
-              {/* Emoji - adjust size based on intensity */}
+              {/* Semi-transparent background box for text */}
+              <rect
+                x={textPos.x - getFontSize(emotion.intensity) * 1.2}
+                y={textPos.y - getFontSize(emotion.intensity) * 0.4}
+                width={getFontSize(emotion.intensity) * 2.4}
+                height={getFontSize(emotion.intensity) * 0.8}
+                fill="rgba(0, 0, 0, 0.4)"
+                rx="3"
+                ry="3"
+                pointerEvents="none"
+              />
+              
+              {/* Text label with white text and black shadow */}
               <text
-                x={emojiPos.x}
-                y={emojiPos.y}
+                x={textPos.x}
+                y={textPos.y}
                 textAnchor="middle"
                 dominantBaseline="middle"
-                fontSize={getEmojiFontSize(emotion.intensity)}
+                fontSize={getFontSize(emotion.intensity)}
+                fontWeight="bold"
+                fill="#fff"
                 pointerEvents="none"
                 className="select-none"
+                style={{
+                  filter: 'drop-shadow(0px 0px 3px rgba(0,0,0,0.8))'
+                }}
               >
-                {emotion.emoji}
+                {emotion.nameJa}
               </text>
 
-              {/* Intensity indicator - small text for strong/weak */}
-              {emotion.intensity !== 'medium' && (
-                <text
-                  x={textPos.x}
-                  y={textPos.y + getFontSize(emotion.intensity) * 0.8}
-                  textAnchor="middle"
-                  dominantBaseline="middle"
-                  fontSize={getFontSize(emotion.intensity) * 0.7}
-                  fontWeight={selected ? 'bold' : 'normal'}
-                  fill={selected ? '#000' : '#555'}
-                  pointerEvents="none"
-                  className="select-none"
-                >
-                  {emotion.intensity === 'strong' ? '強' : '弱'}
-                </text>
-              )}
+
             </g>
           );
         })}
@@ -346,22 +305,34 @@ export default function EmotionWheel3Layer({
             transform: tooltipPosition.x > window.innerWidth - 200 ? 'translateX(-100%)' : 'none'
           }}
         >
-          <div className="font-semibold mb-1">
-            {EMOTION_AXIS_INFO[hoveredAxis]?.nameJa}
-          </div>
-          <div className="text-xs mb-2">
-            {EMOTION_AXIS_INFO[hoveredAxis]?.description}
-          </div>
-          <div className="text-xs text-gray-300">
-            {EMOTION_AXIS_INFO[hoveredAxis]?.keywords.join('・')}
-          </div>
+          {(() => {
+            const hoveredEmotion = PLUTCHIK_EMOTIONS_3_LAYER.find(e => e.id === hoveredAxis);
+            if (!hoveredEmotion) return null;
+            
+            const intensityText = hoveredEmotion.intensity === 'strong' ? '強' : 
+                                 hoveredEmotion.intensity === 'medium' ? '中' : '弱';
+            
+            return (
+              <>
+                <div className="font-semibold mb-1">
+                  {hoveredEmotion.nameJa} ({hoveredEmotion.nameEn})
+                </div>
+                <div className="text-xs mb-1">
+                  強度: {intensityText}
+                </div>
+                <div className="text-xs text-gray-300">
+                  {hoveredEmotion.axis}軸の感情
+                </div>
+              </>
+            );
+          })()}
         </div>
       )}
 
       {/* Legend */}
       <div className="mt-4 text-xs text-gray-600 text-center">
-        <div className="mb-1">内側から外側へ: 弱 → 中 → 強</div>
-        <div>クリックして感情を選択・ホバーで軸の説明を表示</div>
+        <div className="mb-1">内側から外側へ: 強 → 中 → 弱</div>
+        <div>クリックして感情を選択・ホバーで感情の詳細を表示</div>
       </div>
     </div>
   );
