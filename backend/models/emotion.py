@@ -159,11 +159,19 @@ def get_emotions_for_mode(mode: str) -> dict:
     """Get emotions dictionary based on game mode"""
     if mode == "advanced":
         return ADVANCED_EMOTIONS
+    elif mode == "wheel":
+        # Wheel mode uses 24 emotions from emotion_3_layer (3-layer wheel)
+        from models.emotion_3_layer import get_emotions_for_3_layer_mode
+        return get_emotions_for_3_layer_mode()
     return BASIC_EMOTIONS
 
 def get_emotion_choices_for_voting(mode: str, correct_emotion_id: str, choice_count: int = None) -> List[EmotionInfo]:
     """Get emotion choices for voting, including the correct one and random others"""
     import random
+    
+    # For wheel mode, we don't need voting choices since users select from the wheel
+    if mode == "wheel":
+        return []
     
     emotions_dict = get_emotions_for_mode(mode)
     all_emotions = list(emotions_dict.values())

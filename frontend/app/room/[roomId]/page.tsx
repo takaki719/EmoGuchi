@@ -8,6 +8,7 @@ import { useLocaleStore } from '@/stores/localeStore';
 import { translations } from '@/lib/translations';
 import { AudioRecorder } from '@/components/AudioRecorder';
 import { AudioPlayer } from '@/components/AudioPlayer';
+import EmotionWheel3Layer from '@/components/EmotionWheel3Layer';
 import { SocketDebugger } from '@/components/SocketDebugger';
 import { ConnectionDebugger } from '@/components/ConnectionDebugger';
 import { SimpleTest } from '@/components/SimpleTest';
@@ -46,7 +47,7 @@ export default function RoomPage({ params }: { params: { roomId: string } }) {
   const [copySuccess, setCopySuccess] = useState(false);
   const [isStartingRound, setIsStartingRound] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
-  const [gameMode, setGameMode] = useState<'basic' | 'advanced'>('basic');
+  const [gameMode, setGameMode] = useState<'basic' | 'advanced' | 'wheel'>('basic');
   const [maxRounds, setMaxRounds] = useState(3);
   const [speakerOrder, setSpeakerOrder] = useState<'sequential' | 'random'>('sequential');
   const { locale } = useLocaleStore();
@@ -143,7 +144,8 @@ export default function RoomPage({ params }: { params: { roomId: string } }) {
         },
         body: JSON.stringify({
           mode: gameMode,
-          vote_type: gameMode === 'advanced' ? '8choice' : '4choice',
+          vote_type: gameMode === 'advanced' ? '8choice' : 
+                    gameMode === 'wheel' ? 'wheel' : '4choice',
           speaker_order: speakerOrder,
           max_rounds: maxRounds
         }),
@@ -317,7 +319,10 @@ export default function RoomPage({ params }: { params: { roomId: string } }) {
                     <div className="grid grid-cols-2 gap-4 text-sm">
                       <div>
                         <span className="text-gray-600">{t.home.gameMode}:</span>
-                        <span className="ml-2">{roomState.config.mode === 'basic' ? t.home.basicMode : t.home.advancedMode}</span>
+                        <span className="ml-2">
+                          {roomState.config.mode === 'basic' ? t.home.basicMode : 
+                           roomState.config.mode === 'advanced' ? t.home.advancedMode : '3層感情の輪'}
+                        </span>
                       </div>
                       <div>
                         <span className="text-gray-600">{t.home.maxRounds}:</span>
@@ -350,7 +355,7 @@ export default function RoomPage({ params }: { params: { roomId: string } }) {
                           <label className="block text-sm font-medium text-gray-700 mb-2">
                             {t.home.gameMode}
                           </label>
-                          <div className="grid grid-cols-2 gap-2">
+                          <div className="grid grid-cols-3 gap-2">
                             <button
                               type="button"
                               onClick={() => setGameMode('basic')}
@@ -372,6 +377,17 @@ export default function RoomPage({ params }: { params: { roomId: string } }) {
                               }`}
                             >
                               {t.home.advancedMode}
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => setGameMode('wheel')}
+                              className={`px-3 py-2 rounded-lg text-sm font-medium transition-all ${
+                                gameMode === 'wheel'
+                                  ? 'bg-blue-600 text-white'
+                                  : 'bg-white border border-gray-300 text-gray-700 hover:bg-gray-50'
+                              }`}
+                            >
+                              3層感情の輪
                             </button>
                           </div>
                         </div>
@@ -502,15 +518,41 @@ export default function RoomPage({ params }: { params: { roomId: string } }) {
                             <h4 className="font-semibold text-orange-700 mb-1">{t.game.script}</h4>
                             <p className="text-xl font-medium text-orange-900 bg-white p-3 rounded border">{currentRound.phrase}</p>
                           </div>
-                          {speakerEmotion && (
+                          
+                          {/* Wheel mode: Let speaker choose emotion */}
+                          {roomState?.config?.vote_type === 'wheel' ? (
                             <div>
-                              <h4 className="font-semibold text-orange-700 mb-1">{t.game.emotion}</h4>
-                              <p className="text-lg font-medium text-orange-900 bg-white p-3 rounded border">{speakerEmotion}</p>
+                              <h4 className="font-semibold text-orange-700 mb-2">演技したい感情を選択してください</h4>
+                              <div className="flex justify-center">
+                                <EmotionWheel3Layer
+                                  selectedEmotion={selectedEmotion}
+                                  onEmotionSelect={setSelectedEmotion}
+                                  size={300}
+                                />
+                              </div>
+                              {selectedEmotion && (
+                                <div className="mt-4">
+                                  <p className="text-sm text-orange-700 font-medium">
+                                    選択された感情で演技してください
+                                  </p>
+                                </div>
+                              )}
                             </div>
+                          ) : (
+                            // Traditional modes: Show assigned emotion
+                            speakerEmotion && (
+                              <div>
+                                <h4 className="font-semibold text-orange-700 mb-1">{t.game.emotion}</h4>
+                                <p className="text-lg font-medium text-orange-900 bg-white p-3 rounded border">{speakerEmotion}</p>
+                              </div>
+                            )
                           )}
                         </div>
                         <p className="text-sm text-orange-700 mt-4 font-medium">
-                          {t.game.speakerInstructions}
+                          {roomState?.config?.vote_type === 'wheel' ? 
+                            '感情を選択して、その感情で与えられたセリフを読み上げてください' :
+                            t.game.speakerInstructions
+                          }
                         </p>
                       </div>
                       <div className="mt-6">
@@ -518,10 +560,18 @@ export default function RoomPage({ params }: { params: { roomId: string } }) {
                           onRecordingComplete={handleAudioRecording}
                           disabled={false}
                         />
-                        {!speakerEmotion && (
-                          <p className="text-sm text-orange-600 mt-2">
-                            ⚠️ 感情情報を受信中... (録音は有効です)
-                          </p>
+                        {roomState?.config?.vote_type === 'wheel' ? (
+                          !selectedEmotion && (
+                            <p className="text-sm text-orange-600 mt-2">
+                              ⚠️ 演技したい感情を選択してください
+                            </p>
+                          )
+                        ) : (
+                          !speakerEmotion && (
+                            <p className="text-sm text-orange-600 mt-2">
+                              ⚠️ 感情情報を受信中... (録音は有効です)
+                            </p>
+                          )
                         )}
                       </div>
                     </div>
@@ -537,30 +587,49 @@ export default function RoomPage({ params }: { params: { roomId: string } }) {
               {currentRound && !isCurrentSpeaker && !playerVote && (
                 <div className="space-y-3 sm:space-y-4">
                   <h3 className="font-semibold text-sm sm:text-base">{t.game.guessEmotion}</h3>
-                  <div className={`grid gap-2 sm:gap-3 ${
-                    emotionChoices.length <= 4 ? 'grid-cols-2' : 'grid-cols-2 sm:grid-cols-4'
-                  }`}>
-                    {emotionChoices.map((emotion) => (
+                  {roomState?.config?.vote_type === 'wheel' ? (
+                    <div className="flex flex-col items-center space-y-6">
+                      <EmotionWheel3Layer
+                        selectedEmotion={selectedEmotion}
+                        onEmotionSelect={setSelectedEmotion}
+                        size={400}
+                      />
                       <button
-                        key={emotion.id}
-                        onClick={() => setSelectedEmotion(emotion.id)}
-                        className={`p-3 sm:p-4 rounded-lg border-2 transition-colors text-sm sm:text-base ${
-                          selectedEmotion === emotion.id
-                            ? 'border-blue-500 bg-blue-50 font-semibold'
-                            : 'border-gray-200 hover:border-gray-300 hover:bg-gray-50'
-                        }`}
+                        onClick={handleVote}
+                        disabled={!selectedEmotion}
+                        className="w-full max-w-md bg-green-600 text-white py-3 sm:py-4 rounded-lg hover:bg-green-700 disabled:bg-gray-400 font-medium text-sm sm:text-base"
                       >
-                        {emotion.name}
+                        {t.game.vote}
                       </button>
-                    ))}
-                  </div>
-                  <button
-                    onClick={handleVote}
-                    disabled={!selectedEmotion}
-                    className="w-full bg-green-600 text-white py-3 sm:py-4 rounded-lg hover:bg-green-700 disabled:bg-gray-400 font-medium text-sm sm:text-base"
-                  >
-                    {t.game.vote}
-                  </button>
+                    </div>
+                  ) : (
+                    <>
+                      <div className={`grid gap-2 sm:gap-3 ${
+                        emotionChoices.length <= 4 ? 'grid-cols-2' : 'grid-cols-2 sm:grid-cols-4'
+                      }`}>
+                        {emotionChoices.map((emotion) => (
+                          <button
+                            key={emotion.id}
+                            onClick={() => setSelectedEmotion(emotion.id)}
+                            className={`p-3 sm:p-4 rounded-lg border-2 transition-colors text-sm sm:text-base ${
+                              selectedEmotion === emotion.id
+                                ? 'border-blue-500 bg-blue-50 font-semibold'
+                                : 'border-gray-200 hover:border-gray-300 hover:bg-gray-50'
+                            }`}
+                          >
+                            {emotion.name}
+                          </button>
+                        ))}
+                      </div>
+                      <button
+                        onClick={handleVote}
+                        disabled={!selectedEmotion}
+                        className="w-full bg-green-600 text-white py-3 sm:py-4 rounded-lg hover:bg-green-700 disabled:bg-gray-400 font-medium text-sm sm:text-base"
+                      >
+                        {t.game.vote}
+                      </button>
+                    </>
+                  )}
                 </div>
               )}
 

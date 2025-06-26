@@ -8,16 +8,20 @@ from datetime import datetime
 class GameMode(str, Enum):
     BASIC = "basic"
     ADVANCED = "advanced"
+    WHEEL = "wheel"
 
 class VoteType(str, Enum):
     FOUR_CHOICE = "4choice"
     EIGHT_CHOICE = "8choice"
+    WHEEL = "wheel"
     
     @classmethod
     def get_default_for_mode(cls, mode: 'GameMode') -> 'VoteType':
         """Get default vote type for a given game mode"""
         if mode == GameMode.ADVANCED:
             return cls.EIGHT_CHOICE
+        elif mode == GameMode.WHEEL:
+            return cls.WHEEL
         return cls.FOUR_CHOICE
 
 class SpeakerOrder(str, Enum):

@@ -1,5 +1,5 @@
-export type GameMode = 'basic' | 'advanced';
-export type VoteType = '4choice' | '8choice';
+export type GameMode = 'basic' | 'advanced' | 'wheel';
+export type VoteType = '4choice' | '8choice' | 'wheel';
 export type SpeakerOrder = 'random' | 'sequential';
 export type GamePhase = 'waiting' | 'in_round' | 'result' | 'closed';
 
@@ -41,6 +41,7 @@ export interface Round {
   emotion_id: string;
   speaker_name: string;
   voting_choices?: EmotionChoice[];
+  wheel_mode?: boolean;
 }
 
 export interface RoundResult {
