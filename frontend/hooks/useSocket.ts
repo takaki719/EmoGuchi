@@ -152,7 +152,9 @@ export const useSocket = () => {
         
         const audioUrl = URL.createObjectURL(audioBlob);
         store.setAudioUrl(audioUrl);
+        store.setAudioProcessed(data.is_processed || false);
         console.log('✅ Audio URL created successfully:', audioUrl);
+        console.log('🎯 Audio processed:', data.is_processed);
         
       } catch (error) {
         console.error('❌ Error creating audio URL:', error);

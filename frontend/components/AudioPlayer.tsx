@@ -3,9 +3,10 @@ import React, { useRef, useState } from 'react';
 interface AudioPlayerProps {
   audioUrl: string;
   speakerName?: string;
+  isProcessed?: boolean;
 }
 
-export const AudioPlayer: React.FC<AudioPlayerProps> = ({ audioUrl, speakerName }) => {
+export const AudioPlayer: React.FC<AudioPlayerProps> = ({ audioUrl, speakerName, isProcessed = false }) => {
   const audioRef = useRef<HTMLAudioElement>(null);
   const [isPlaying, setIsPlaying] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -41,9 +42,16 @@ export const AudioPlayer: React.FC<AudioPlayerProps> = ({ audioUrl, speakerName 
 
   return (
     <div className="bg-blue-50 p-4 rounded-lg border-2 border-blue-200">
-      <h4 className="font-semibold text-blue-800 mb-3">
-        {speakerName ? `${speakerName}の音声:` : 'スピーカーの音声:'}
-      </h4>
+      <div className="mb-3">
+        <h4 className="font-semibold text-blue-800">
+          {speakerName ? `${speakerName}の音声:` : 'スピーカーの音声:'}
+        </h4>
+        {isProcessed && (
+          <p className="text-xs text-red-600 mt-1">
+            🎯 音声加工済み（高難易度モード）
+          </p>
+        )}
+      </div>
       
       {error && (
         <div className="mb-3 p-2 bg-red-100 border border-red-400 text-red-700 rounded text-sm">

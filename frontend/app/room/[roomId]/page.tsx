@@ -35,6 +35,7 @@ export default function RoomPage({ params }: { params: { roomId: string } }) {
     gameComplete,
     error,
     audioUrl,
+    isAudioProcessed,
     setPlayerName,
     setPlayerVote,
     setGameComplete,
@@ -50,6 +51,7 @@ export default function RoomPage({ params }: { params: { roomId: string } }) {
   const [gameMode, setGameMode] = useState<'basic' | 'advanced' | 'wheel'>('basic');
   const [maxRounds, setMaxRounds] = useState(1);
   const [speakerOrder, setSpeakerOrder] = useState<'sequential' | 'random'>('sequential');
+  const [hardMode, setHardMode] = useState(false);
   const { locale } = useLocaleStore();
   const t = translations[locale];
 
@@ -78,6 +80,7 @@ export default function RoomPage({ params }: { params: { roomId: string } }) {
       setGameMode(roomState.config.mode);
       setMaxRounds(roomState.config.max_rounds);
       setSpeakerOrder(roomState.config.speaker_order);
+      setHardMode(roomState.config.hard_mode || false);
     }
   }, [roomState?.config]);
 
@@ -166,7 +169,8 @@ export default function RoomPage({ params }: { params: { roomId: string } }) {
           vote_type: gameMode === 'advanced' ? '8choice' : 
                     gameMode === 'wheel' ? 'wheel' : '4choice',
           speaker_order: speakerOrder,
-          max_rounds: maxRounds
+          max_rounds: maxRounds,
+          hard_mode: hardMode
         }),
       });
 
@@ -351,6 +355,10 @@ export default function RoomPage({ params }: { params: { roomId: string } }) {
                         <span className="text-gray-600">{t.home.speakerOrder}:</span>
                         <span className="ml-2">{roomState.config.speaker_order === 'sequential' ? t.home.sequential : t.home.random}</span>
                       </div>
+                      <div>
+                        <span className="text-gray-600">高難易度モード:</span>
+                        <span className="ml-2">{roomState.config.hard_mode ? 'ON' : 'OFF'}</span>
+                      </div>
                     </div>
                   </div>
                 )}
@@ -459,6 +467,47 @@ export default function RoomPage({ params }: { params: { roomId: string } }) {
                           </div>
                         </div>
 
+                        {/* Hard Mode */}
+                        <div className="mb-4">
+                          <label className="block text-sm font-medium text-gray-700 mb-2">
+                            高難易度モード
+                          </label>
+                          <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-3 mb-3">
+                            <p className="text-xs text-yellow-800 mb-1">
+                              🎯 音声加工でリスナーの感情判定を困難にします
+                            </p>
+                            <p className="text-xs text-yellow-700">
+                              • ピッチ・テンポ変更による印象操作<br/>
+                              • 感情逆転変換による誤誘導<br/>
+                              • スピーカーには原音、リスナーには加工音声
+                            </p>
+                          </div>
+                          <div className="grid grid-cols-2 gap-2">
+                            <button
+                              type="button"
+                              onClick={() => setHardMode(false)}
+                              className={`px-3 py-2 rounded-lg text-sm font-medium transition-all ${
+                                !hardMode
+                                  ? 'bg-blue-600 text-white'
+                                  : 'bg-white border border-gray-300 text-gray-700 hover:bg-gray-50'
+                              }`}
+                            >
+                              OFF（通常）
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => setHardMode(true)}
+                              className={`px-3 py-2 rounded-lg text-sm font-medium transition-all ${
+                                hardMode
+                                  ? 'bg-red-600 text-white'
+                                  : 'bg-white border border-gray-300 text-gray-700 hover:bg-gray-50'
+                              }`}
+                            >
+                              ON（高難易度）
+                            </button>
+                          </div>
+                        </div>
+
                         <div className="flex gap-2">
                           <button
                             onClick={handleUpdateSettings}
@@ -509,6 +558,16 @@ export default function RoomPage({ params }: { params: { roomId: string } }) {
                       <h2 className="text-xl font-semibold mb-2">
                         {t.game.speakerIs} {currentRound.speaker_name}
                       </h2>
+                      {roomState?.config?.hard_mode && (
+                        <div className="bg-red-50 border border-red-200 rounded-lg p-3 mb-3">
+                          <p className="text-sm text-red-700">
+                            🎯 <strong>高難易度モード</strong>：音声が加工されています
+                          </p>
+                          <p className="text-xs text-red-600 mt-1">
+                            ピッチ・テンポ変更や感情逆転により判定が困難になっています
+                          </p>
+                        </div>
+                      )}
                       <div className="bg-gray-50 p-4 rounded-lg">
                         <p className="text-lg">{currentRound.phrase}</p>
                       </div>
@@ -517,6 +576,7 @@ export default function RoomPage({ params }: { params: { roomId: string } }) {
                           <AudioPlayer 
                             audioUrl={audioUrl} 
                             speakerName={currentRound.speaker_name}
+                            isProcessed={isAudioProcessed}
                           />
                         ) : (
                           <div className="bg-gray-100 p-4 rounded-lg border-2 border-gray-300">
@@ -552,6 +612,16 @@ export default function RoomPage({ params }: { params: { roomId: string } }) {
                         <p className="text-sm text-orange-700 mt-4 font-medium">
                           {t.game.speakerInstructions}
                         </p>
+                        {roomState?.config?.hard_mode && (
+                          <div className="bg-red-50 border border-red-200 rounded-lg p-3 mt-3">
+                            <p className="text-sm text-red-700">
+                              🎯 <strong>高難易度モード</strong>：あなたの音声はリスナーに加工されて届きます
+                            </p>
+                            <p className="text-xs text-red-600 mt-1">
+                              あなたには原音が聞こえますが、リスナーには加工音声が再生されます
+                            </p>
+                          </div>
+                        )}
                       </div>
                       <div className="mt-6">
                         <AudioRecorder 

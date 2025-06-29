@@ -2,6 +2,14 @@ export type GameMode = 'basic' | 'advanced' | 'wheel';
 export type VoteType = '4choice' | '8choice' | 'wheel';
 export type SpeakerOrder = 'random' | 'sequential';
 export type GamePhase = 'waiting' | 'in_round' | 'result' | 'closed';
+export type VoiceProcessingPattern = 'fast_high' | 'slow_low' | 'pitch_up' | 'tempo_up' | 'emotion_reverse';
+
+export interface VoiceProcessingConfig {
+  pattern: VoiceProcessingPattern;
+  pitch: number;
+  tempo: number;
+  description: string;
+}
 
 export interface RoomConfig {
   mode: GameMode;
@@ -9,6 +17,7 @@ export interface RoomConfig {
   speaker_order: SpeakerOrder;
   vote_timeout: number;
   max_rounds: number;
+  hard_mode?: boolean;
 }
 
 export interface Player {
@@ -95,6 +104,6 @@ export interface SocketEvents {
   speaker_emotion: (data: { roundId: string; emotionId: string; emotionName?: string }) => void;
   round_result: (data: RoundResult) => void;
   game_complete: (data: GameComplete) => void;
-  audio_received: (data: { audio: ArrayBuffer; speaker_name: string }) => void;
+  audio_received: (data: { audio: ArrayBuffer; speaker_name: string; is_processed?: boolean }) => void;
   error: (data: { code: string; message: string }) => void;
 }

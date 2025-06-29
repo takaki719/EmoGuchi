@@ -2,9 +2,9 @@ import socketio
 from typing import Dict, Any
 from models.game import Player, GamePhase, Round, AudioRecording
 from services.state_store import state_store
-import logging
+from logging import getLogger
 
-logger = logging.getLogger(__name__)
+logger = getLogger(__name__)
 
 class GameSocketEvents:
     def __init__(self, sio: socketio.AsyncServer):
@@ -569,6 +569,154 @@ class GameSocketEvents:
                     'code': 'EMO-500',
                     'message': f'Internal server error: {str(e)}'
                 }, room=sid)
+
+        @self.sio.event
+        async def audio_send(sid, data):
+            """Handle audio data from speaker"""
+            logger.info(f"🔥 audio_send event received from sid: {sid}")
+            logger.info(f"🔥 audio_send data keys: {list(data.keys()) if isinstance(data, dict) else 'not dict'}")
+            
+            try:
+                session = await events_instance.sio.get_session(sid)
+                logger.info(f"🔥 Session data: {session}")
+                
+                room_id = session.get('room_id')
+                player_id = session.get('player_id')
+                
+                logger.info(f"🔥 Extracted room_id: {room_id}, player_id: {player_id}")
+                
+                if not room_id or not player_id:
+                    await events_instance.sio.emit('error', {
+                        'code': 'EMO-401',
+                        'message': 'Not authenticated'
+                    }, room=sid)
+                    return
+                
+                room = await state_store.get_room(room_id)
+                if not room or not room.current_round:
+                    await events_instance.sio.emit('error', {
+                        'code': 'EMO-404',
+                        'message': 'No active round'
+                    }, room=sid)
+                    return
+                
+                # Verify that sender is the current speaker
+                if room.current_round.speaker_id != player_id:
+                    await events_instance.sio.emit('error', {
+                        'code': 'EMO-403',
+                        'message': 'Only the speaker can send audio'
+                    }, room=sid)
+                    return
+                
+                # Create audio recording
+                audio_data = data.get('audio')
+                if not audio_data:
+                    await events_instance.sio.emit('error', {
+                        'code': 'EMO-400',
+                        'message': 'No audio data provided'
+                    }, room=sid)
+                    return
+                
+                logger.info(f"Received audio data, type: {type(audio_data)}, size: {len(audio_data) if hasattr(audio_data, '__len__') else 'unknown'}")
+                
+                # Get emotion info
+                from models.emotion import BASIC_EMOTIONS, ADVANCED_EMOTIONS
+                emotion_acted = room.current_round.emotion_id
+                emotion_name = emotion_acted
+                
+                for emotion_info in BASIC_EMOTIONS.values():
+                    if emotion_info.id == emotion_acted:
+                        emotion_name = emotion_info.name_ja
+                        break
+                else:
+                    for emotion_info in ADVANCED_EMOTIONS.values():
+                        if emotion_info.id == emotion_acted:
+                            emotion_name = emotion_info.name_ja
+                            break
+                
+                # Convert audio data to bytes if needed
+                if isinstance(audio_data, (list, tuple)):
+                    audio_bytes = bytes(audio_data)
+                elif hasattr(audio_data, 'tobytes'):
+                    audio_bytes = audio_data.tobytes()
+                else:
+                    audio_bytes = audio_data
+                
+                # Save audio recording
+                recording = AudioRecording(
+                    round_id=room.current_round.id,
+                    speaker_id=player_id,
+                    audio_data=audio_bytes,
+                    emotion_acted=emotion_name
+                )
+                
+                await state_store.save_audio_recording(recording)
+                logger.info(f"Audio recording saved with ID: {recording.id}")
+                
+                # Update round with audio recording ID
+                room.current_round.audio_recording_id = recording.id
+                await state_store.update_room(room)
+                
+                # Apply voice processing if hard mode is enabled
+                processed_audio = audio_data  # Default to original audio
+                logger.info(f"🎯 Hard mode check: room.config.hard_mode = {room.config.hard_mode}")
+                logger.info(f"🎯 Room ID: {room_id}, Current Round: {room.current_round.id if room.current_round else 'None'}")
+                logger.info(f"🎯 Emotion ID: {room.current_round.emotion_id if room.current_round else 'None'}")
+                
+                if room.config.hard_mode:
+                    logger.info("🎯 Hard mode is ON - attempting voice processing")
+                    try:
+                        from services.voice_processing_service import voice_processing_service
+                        logger.info(f"🎯 Voice processing service enabled: {voice_processing_service.is_enabled()}")
+                        
+                        if voice_processing_service.is_enabled():
+                            # Select processing pattern based on emotion
+                            processing_config = voice_processing_service.select_processing_pattern(
+                                room.current_round.emotion_id
+                            )
+                            logger.info(f"🎯 Selected processing config: {processing_config.pattern.value}, pitch={processing_config.pitch}, tempo={processing_config.tempo}")
+                            
+                            # Process the audio
+                            logger.info(f"🎯 Processing audio: input size={len(audio_bytes)} bytes")
+                            processed_audio_bytes = voice_processing_service.process_audio(
+                                audio_bytes, processing_config
+                            )
+                            
+                            if processed_audio_bytes and processed_audio_bytes != audio_bytes:
+                                # Convert back to format expected by frontend
+                                if isinstance(audio_data, (list, tuple)):
+                                    processed_audio = list(processed_audio_bytes)
+                                else:
+                                    processed_audio = processed_audio_bytes
+                                
+                                logger.info(f"🎯 ✅ Audio processed successfully with {processing_config.pattern.value}: "
+                                          f"pitch={processing_config.pitch}, tempo={processing_config.tempo}, output size={len(processed_audio_bytes)}")
+                            else:
+                                logger.warning("🎯 ❌ Audio processing failed or returned same audio, using original audio")
+                        else:
+                            logger.warning("🎯 ❌ Voice processing service not available, using original audio")
+                    except Exception as e:
+                        logger.error(f"🎯 ❌ Voice processing error: {e}", exc_info=True)
+                        # Continue with original audio if processing fails
+                else:
+                    logger.info("🎯 Hard mode is OFF - using original audio")
+                
+                # Broadcast audio to all other players in the room
+                # Speaker gets original audio, listeners get processed audio (if hard mode)
+                await events_instance.sio.emit('audio_received', {
+                    'audio': processed_audio,
+                    'speaker_name': room.players[player_id].name,
+                    'is_processed': room.config.hard_mode and processed_audio != audio_data
+                }, room=room_id, skip_sid=sid)
+                
+                logger.info(f"Audio received and broadcast from speaker {player_id} in room {room_id}, data size: {len(audio_bytes)}")
+                
+            except Exception as e:
+                logger.error(f"Error in audio_send: {e}", exc_info=True)
+                await events_instance.sio.emit('error', {
+                    'code': 'EMO-500',
+                    'message': f'Internal server error: {str(e)}'
+                }, room=sid)
     
     async def _handle_player_disconnect(self, sid: str):
         """Handle player disconnection"""
@@ -730,105 +878,3 @@ class GameSocketEvents:
             
         except Exception as e:
             logger.error(f"Error completing round: {e}")
-
-        @self.sio.event
-        async def audio_send(sid, data):
-            """Handle audio data from speaker"""
-            logger.info(f"🔥 audio_send event received from sid: {sid}")
-            logger.info(f"🔥 audio_send data keys: {list(data.keys()) if isinstance(data, dict) else 'not dict'}")
-            
-            try:
-                session = await self.sio.get_session(sid)
-                logger.info(f"🔥 Session data: {session}")
-                
-                room_id = session.get('room_id')
-                player_id = session.get('player_id')
-                
-                logger.info(f"🔥 Extracted room_id: {room_id}, player_id: {player_id}")
-                
-                if not room_id or not player_id:
-                    await self.sio.emit('error', {
-                        'code': 'EMO-401',
-                        'message': 'Not authenticated'
-                    }, room=sid)
-                    return
-                
-                room = await state_store.get_room(room_id)
-                if not room or not room.current_round:
-                    await self.sio.emit('error', {
-                        'code': 'EMO-404',
-                        'message': 'No active round'
-                    }, room=sid)
-                    return
-                
-                # Verify that sender is the current speaker
-                if room.current_round.speaker_id != player_id:
-                    await self.sio.emit('error', {
-                        'code': 'EMO-403',
-                        'message': 'Only the speaker can send audio'
-                    }, room=sid)
-                    return
-                
-                # Create audio recording
-                audio_data = data.get('audio')
-                if not audio_data:
-                    await self.sio.emit('error', {
-                        'code': 'EMO-400',
-                        'message': 'No audio data provided'
-                    }, room=sid)
-                    return
-                
-                logger.info(f"Received audio data, type: {type(audio_data)}, size: {len(audio_data) if hasattr(audio_data, '__len__') else 'unknown'}")
-                
-                # Get emotion info
-                from models.emotion import BASIC_EMOTIONS, ADVANCED_EMOTIONS
-                emotion_acted = room.current_round.emotion_id
-                emotion_name = emotion_acted
-                
-                for emotion_info in BASIC_EMOTIONS.values():
-                    if emotion_info.id == emotion_acted:
-                        emotion_name = emotion_info.name_ja
-                        break
-                else:
-                    for emotion_info in ADVANCED_EMOTIONS.values():
-                        if emotion_info.id == emotion_acted:
-                            emotion_name = emotion_info.name_ja
-                            break
-                
-                # Convert audio data to bytes if needed
-                if isinstance(audio_data, (list, tuple)):
-                    audio_bytes = bytes(audio_data)
-                elif hasattr(audio_data, 'tobytes'):
-                    audio_bytes = audio_data.tobytes()
-                else:
-                    audio_bytes = audio_data
-                
-                # Save audio recording
-                recording = AudioRecording(
-                    round_id=room.current_round.id,
-                    speaker_id=player_id,
-                    audio_data=audio_bytes,
-                    emotion_acted=emotion_name
-                )
-                
-                await state_store.save_audio_recording(recording)
-                logger.info(f"Audio recording saved with ID: {recording.id}")
-                
-                # Update round with audio recording ID
-                room.current_round.audio_recording_id = recording.id
-                await state_store.update_room(room)
-                
-                # Broadcast audio to all other players in the room
-                await self.sio.emit('audio_received', {
-                    'audio': audio_data,
-                    'speaker_name': room.players[player_id].name
-                }, room=room_id, skip_sid=sid)
-                
-                logger.info(f"Audio received and broadcast from speaker {player_id} in room {room_id}, data size: {len(audio_bytes)}")
-                
-            except Exception as e:
-                logger.error(f"Error in audio_send: {e}", exc_info=True)
-                await self.sio.emit('error', {
-                    'code': 'EMO-500',
-                    'message': f'Internal server error: {str(e)}'
-                }, room=sid)

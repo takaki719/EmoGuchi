@@ -48,7 +48,8 @@ async def create_room(request: CreateRoomRequest):
             mode=request.mode,
             vote_type=request.vote_type,
             speaker_order=request.speaker_order,
-            max_rounds=request.max_rounds
+            max_rounds=request.max_rounds,
+            hard_mode=request.hard_mode
         )
         
         # Handle custom room ID
@@ -150,6 +151,7 @@ async def update_room_config(
         vote_type=request.vote_type,
         speaker_order=request.speaker_order,
         max_rounds=request.max_rounds,
+        hard_mode=request.hard_mode,
         vote_timeout=room.config.vote_timeout  # Keep existing timeout
     )
     

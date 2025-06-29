@@ -1,0 +1,2 @@
+When I present a task that needs improvement, please describe which files should be modified and how they should be changed in Proposal.md.
+You may overwrite the existing contents of Proposal.md with your suggestions. However, if you determine that the current implementation does not require any improvement, feel free to leave it unchanged.

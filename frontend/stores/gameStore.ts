@@ -19,6 +19,7 @@ interface GameStore {
   audioRecording: Blob | null;
   audioUrl: string | null;
   recordingInProgress: boolean;
+  isAudioProcessed: boolean;
   
   // UI state
   isLoading: boolean;
@@ -37,6 +38,7 @@ interface GameStore {
   setAudioRecording: (recording: Blob | null) => void;
   setAudioUrl: (url: string | null) => void;
   setRecordingInProgress: (inProgress: boolean) => void;
+  setAudioProcessed: (processed: boolean) => void;
   setLoading: (loading: boolean) => void;
   setError: (error: string | null) => void;
   reset: () => void;
@@ -56,6 +58,7 @@ export const useGameStore = create<GameStore>((set) => ({
   audioRecording: null,
   audioUrl: null,
   recordingInProgress: false,
+  isAudioProcessed: false,
   isLoading: false,
   error: null,
   
@@ -72,6 +75,7 @@ export const useGameStore = create<GameStore>((set) => ({
   setAudioRecording: (recording) => set({ audioRecording: recording }),
   setAudioUrl: (url) => set({ audioUrl: url }),
   setRecordingInProgress: (inProgress) => set({ recordingInProgress: inProgress }),
+  setAudioProcessed: (processed) => set({ isAudioProcessed: processed }),
   setLoading: (loading) => set({ isLoading: loading }),
   setError: (error) => set({ error }),
   reset: () => set({
@@ -87,6 +91,7 @@ export const useGameStore = create<GameStore>((set) => ({
     audioRecording: null,
     audioUrl: null,
     recordingInProgress: false,
+    isAudioProcessed: false,
     isLoading: false,
     error: null,
   }),

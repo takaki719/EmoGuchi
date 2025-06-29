@@ -1,9 +1,28 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 import socketio
+import logging
 from config import settings
 from api import rooms, debug
 from sockets.events import GameSocketEvents
+
+# Configure logging to show emoji characters
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
+    handlers=[
+        logging.StreamHandler()
+    ]
+)
+
+# Set specific loggers to INFO level
+logging.getLogger('services.voice_processing_service').setLevel(logging.INFO)
+logging.getLogger('sockets.events').setLevel(logging.INFO)
+logging.getLogger('__main__').setLevel(logging.INFO)
+
+# Initial startup log with emoji
+logger = logging.getLogger(__name__)
+logger.info("🎭 EMOGUCHI Backend starting up...")
 
 # Create FastAPI app
 app = FastAPI(
@@ -33,9 +52,9 @@ sio = socketio.AsyncServer(
 # Setup Socket.IO events
 game_events = GameSocketEvents(sio)
 
-# Add simple audio handling
-from simple_audio import setup_simple_audio_events
-setup_simple_audio_events(sio)
+# Add simple audio handling - DISABLED to use proper voice processing
+# from simple_audio import setup_simple_audio_events
+# setup_simple_audio_events(sio)
 
 # Include API routers
 app.include_router(rooms.router)
