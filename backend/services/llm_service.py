@@ -97,18 +97,31 @@ class LLMService:
             if not self.client:
                 print("OpenAI client not initialized")
                 return random.choice(self.fallback_phrases)
+            length_choice = random.choices(
+            ["very_short","short", "mid", "long"], weights=[3,4, 2, 1], k=1
+            )[0]
+            prompt = f"""
+            あなたは日本語の台詞生成AIです。
+            以下の手順で**事前に一切公表せず**内部でランダム抽選を行ってください。
             
-            prompt = """
-あなたは日本語の台詞生成AIです。同じ言葉でも感情や状況によって意味が異なる自然な日常会話の台詞を1つ生成してください。
+            1. 日常シチュエーションを1つ選ぶ  
+               例: 朝の通勤電車 / コンビニで会計 / 友人とのLINE / 雨の日の帰宅 / ゲームのVC など10種以上を内部リスト化し、その中から無作為抽選
+            
+            2. 感情を1つ選ぶ  
+               例: 喜び・怒り・悲しみ・驚き・焦り・困惑・照れ・感謝・不安・ワクワク などから無作為抽選
+            
+            3. “同じ言葉でも状況で意味が変わる”効果が出るよう、**二重の意味合い**をもつワードや語尾を活かす
+            
+            - 台詞長カテゴリ: **{length_choice}**
+                - very_short → 2〜5文字
+                - short → 5〜10文字
+                - mid   → 15〜30文字
+                - long  → 70〜120文字
+            - 台詞のみ（かっこなし・説明文なし・改行なし）  を出力し、説明禁止
+            - 条件を満たさなければ再生成して最終的に条件を満たす台詞を返す
+            """
 
-要件:
-- 日常的なシチュエーションでの台詞
-- 同じ言葉でも感情や状況によって意味が異なる台詞
-- 3-15文字程度
-- 敬語・タメ口どちらでも可
 
-台詞のみを出力してください:
-"""
             
             response = await self.client.chat.completions.create(
                 model="gpt-4.1-mini",
@@ -117,8 +130,11 @@ class LLMService:
                     {"role": "user", "content": prompt}
                 ],
                 max_tokens=100,
-                temperature=0.8,
-                timeout=10.0  # 10 second timeout
+                temperature=1.2,
+                timeout=10.0,  # 10 second timeout
+                frequency_penalty = 0.3,
+                presence_penalty = 0.3,
+                top_p = 0.9,
             )
             
             if not response or not response.choices:

@@ -37,7 +37,17 @@ class EmotionClassifier:
             logger.info("🤖 Kushinada Hubert Large モデルを初期化中...")
             
             # Upstream モデル（HubertModel）の読み込み
-            self.upstream = HubertModel.from_pretrained("imprt/kushinada-hubert-large").eval()
+            try:
+                # まずローカルのKushinadaモデルを試す
+                self.upstream = HubertModel.from_pretrained("../kushinada-hubert-large").eval()
+                logger.info("✅ ローカル Kushinada Hubert モデル読み込み完了")
+                self.use_kushinada = True
+            except Exception as e:
+                logger.warning(f"⚠️ ローカル Kushinada モデル読み込み失敗: {e}")
+                logger.error("❌ Kushinadaモデルが利用できないため、推論を実行できません")
+                logger.error("💡 解決方法: git-lfsをインストールして `git lfs pull` を実行してください")
+                raise RuntimeError("Kushinadaモデルが必要です。git-lfsでモデルファイルをダウンロードしてください。")
+            
             logger.info("✅ Upstream モデル読み込み完了")
             
             # チェックポイントファイルの存在確認
@@ -46,7 +56,7 @@ class EmotionClassifier:
             
             # Downstream モデルの読み込み
             logger.info(f"📦 チェックポイントを読み込み中: {self.ckpt_path}")
-            ckpt = torch.load(self.ckpt_path, map_location="cpu")["Downstream"]
+            ckpt = torch.load(self.ckpt_path, map_location="cpu", weights_only=False)["Downstream"]
             
             # Projector レイヤーの初期化
             projector_weight_shape = ckpt["projector.weight"].shape

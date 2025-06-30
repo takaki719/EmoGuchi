@@ -352,7 +352,7 @@ export default function SoloPage() {
               <div className="mb-8">
                 <div className="bg-yellow-50 border-l-4 border-yellow-400 p-4 mb-4">
                   <div className="text-sm text-gray-600 mb-1">セリフ</div>
-                  <div className="text-2xl font-bold text-gray-800 mb-2">「{currentDialogue}」</div>
+                  <div className="text-2xl font-bold text-gray-800 mb-2">{currentDialogue}</div>
                 </div>
                 
                 <div className="flex items-center justify-center gap-4 mb-6">
@@ -391,7 +391,7 @@ export default function SoloPage() {
           <div className="max-w-2xl mx-auto bg-white rounded-2xl shadow-lg overflow-hidden">
             <div className="bg-gradient-to-r from-red-500 to-pink-500 text-white p-6 text-center">
               <h2 className="text-2xl font-bold mb-2">
-                「{currentDialogue}」
+                {currentDialogue}
               </h2>
               <p className="text-red-100">
                 「{EMOTIONS[currentEmotion].label}」の感情で演技中...
@@ -479,7 +479,7 @@ export default function SoloPage() {
                     <div className="mb-6">
                       <div className="bg-gray-50 rounded-lg p-4 mb-4">
                         <div className="text-sm text-gray-600 mb-1">セリフ</div>
-                        <div className="text-lg font-semibold">「{lastRound.dialogue}」</div>
+                        <div className="text-lg font-semibold">{lastRound.dialogue}</div>
                       </div>
                       
                       <div className="grid grid-cols-2 gap-4 mb-6">
