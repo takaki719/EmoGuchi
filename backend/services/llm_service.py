@@ -98,7 +98,7 @@ class LLMService:
                 print("OpenAI client not initialized")
                 return random.choice(self.fallback_phrases)
             length_choice = random.choices(
-            ["very_short","short", "mid", "long"], weights=[3,4, 2, 1], k=1
+            ["very_short","short", "mid", "long"], weights=[4,4, 1, 1], k=1
             )[0]
             prompt = f"""
             あなたは日本語の台詞生成AIです。
