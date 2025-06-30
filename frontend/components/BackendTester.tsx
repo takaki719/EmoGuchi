@@ -19,7 +19,7 @@ export const BackendTester: React.FC = () => {
       });
       
       console.log('Socket.IO endpoint status:', socketResponse.status);
-      console.log('Socket.IO endpoint headers:', [...socketResponse.headers.entries()]);
+      console.log('Socket.IO endpoint headers:', Array.from(socketResponse.headers.entries()));
       
       if (socketResponse.status === 200) {
         setTestResult('✅ Backend and Socket.IO responding');

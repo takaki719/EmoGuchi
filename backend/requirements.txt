@@ -11,3 +11,7 @@ librosa==0.11.0
 soundfile==0.13.1
 pydub==0.25.1
 numpy==2.0.2
+# ソロモード用の追加ライブラリ
+torch==2.1.0
+torchaudio==2.1.0
+transformers==4.36.0

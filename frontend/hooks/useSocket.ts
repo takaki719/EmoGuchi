@@ -136,12 +136,12 @@ export const useSocket = () => {
         if (data.audio instanceof ArrayBuffer) {
           console.log('🎵 Converting ArrayBuffer to Blob');
           audioBlob = new Blob([data.audio], { type: 'audio/webm;codecs=opus' });
-        } else if (data.audio instanceof Uint8Array) {
+        } else if (data.audio && (data.audio as any).constructor?.name === 'Uint8Array') {
           console.log('🎵 Converting Uint8Array to Blob');
-          audioBlob = new Blob([data.audio.buffer], { type: 'audio/webm;codecs=opus' });
-        } else if (data.audio && typeof data.audio === 'object' && data.audio.data) {
+          audioBlob = new Blob([(data.audio as any).buffer], { type: 'audio/webm;codecs=opus' });
+        } else if (data.audio && typeof data.audio === 'object' && (data.audio as any).data) {
           console.log('🎵 Converting object with data property to Blob');
-          const uint8Array = new Uint8Array(data.audio.data);
+          const uint8Array = new Uint8Array((data.audio as any).data);
           audioBlob = new Blob([uint8Array], { type: 'audio/webm;codecs=opus' });
         } else {
           console.log('🎵 Unknown audio data format, trying direct conversion');
@@ -175,7 +175,7 @@ export const useSocket = () => {
     const originalEmit = socket.emit;
     socket.emit = function(eventName: string, ...args: any[]) {
       console.log('📤 Socket event SENT:', eventName, args);
-      return originalEmit.apply(socket, [eventName, ...args]);
+      return (originalEmit as any).apply(socket, [eventName, ...args]);
     };
 
     // Error handling

@@ -15,9 +15,9 @@ export default function RootLayout({
   children: React.ReactNode
 }) {
   return (
-    <html lang="ja">
-      <body className={inter.className}>
-        <main className="min-h-screen bg-gradient-to-br from-blue-50 to-purple-50">
+    <html lang="ja" className="scroll-smooth">
+      <body className={`${inter.className} antialiased`}>
+        <main className="min-h-screen">
           {children}
         </main>
       </body>

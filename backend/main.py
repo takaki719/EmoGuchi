@@ -1,4 +1,4 @@
-from fastapi import FastAPI
+from fastapi import FastAPI, UploadFile, File, Form
 from fastapi.middleware.cors import CORSMiddleware
 import socketio
 import logging
@@ -59,6 +59,16 @@ game_events = GameSocketEvents(sio)
 # Include API routers
 app.include_router(rooms.router)
 app.include_router(debug.router)
+
+# ソロモード用APIの追加
+from api import solo
+app.include_router(solo.router)
+
+# ルートレベルの/predict エンドポイント（フロントエンド互換性のため）
+@app.post("/predict")
+async def predict_emotion_root(file: UploadFile = File(...), target_emotion: int = Form(...)):
+    """ルートレベルの/predict エンドポイント（/api/v1/solo/predict にリダイレクト）"""
+    return await solo.predict_emotion(file, target_emotion)
 
 # Create ASGI app that combines FastAPI and Socket.IO
 socket_app = socketio.ASGIApp(sio, app)

@@ -284,7 +284,7 @@ export function getEmotionById(id: string): PlutchikEmotion | undefined {
 }
 
 export function getAxes(): string[] {
-  return [...new Set(PLUTCHIK_EMOTIONS_3_LAYER.map(emotion => emotion.axis))];
+  return Array.from(new Set(PLUTCHIK_EMOTIONS_3_LAYER.map(emotion => emotion.axis)));
 }
 
 export function getIntensityLevels(): IntensityLevel[] {
