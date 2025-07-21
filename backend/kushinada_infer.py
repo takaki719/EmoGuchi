@@ -4,11 +4,11 @@ Kushinada Hubert Large を使用した感情分類推論モジュール
 """
 
 import torch
-import torchaudio
 import os
 import logging
-from typing import Tuple, Optional
-from transformers import HubertModel
+import soundfile as sf
+from typing import Tuple
+from transformers import HubertModel, AutoFeatureExtractor
 
 logger = logging.getLogger(__name__)
 
@@ -23,6 +23,8 @@ class EmotionClassifier:
             2: "怒り（angry）",
             3: "悲しみ（sad）"
         }
+        self.model = "imprt/kushinada-hubert-large"
+        self.feature_extractor = None
         self.upstream = None
         self.projector = None
         self.post_net = None
@@ -36,14 +38,18 @@ class EmotionClassifier:
         try:
             logger.info("🤖 Kushinada Hubert Large モデルを初期化中...")
             
-            # Upstream モデル（HubertModel）の読み込み
+            # Feature Extractor と Upstream モデルの読み込み
             try:
-                # まずローカルのKushinadaモデルを試す
-                self.upstream = HubertModel.from_pretrained("../kushinada-hubert-large").eval()
-                logger.info("✅ ローカル Kushinada Hubert モデル読み込み完了")
+                # AutoFeatureExtractor を使用
+                self.feature_extractor = AutoFeatureExtractor.from_pretrained(self.model)
+                logger.info("✅ AutoFeatureExtractor 読み込み完了")
+                
+                # HubertModel の読み込み
+                self.upstream = HubertModel.from_pretrained(self.model).eval()
+                logger.info("✅ Kushinada Hubert モデル読み込み完了")
                 self.use_kushinada = True
             except Exception as e:
-                logger.warning(f"⚠️ ローカル Kushinada モデル読み込み失敗: {e}")
+                logger.warning(f"⚠️ Kushinada モデル読み込み失敗: {e}")
                 logger.error("❌ Kushinadaモデルが利用できないため、推論を実行できません")
                 logger.error("💡 解決方法: git-lfsをインストールして `git lfs pull` を実行してください")
                 raise RuntimeError("Kushinadaモデルが必要です。git-lfsでモデルファイルをダウンロードしてください。")
@@ -100,31 +106,26 @@ class EmotionClassifier:
         try:
             logger.info(f"🎵 音声ファイルを処理中: {wav_path}")
             
-            # 音声ファイルの読み込み
-            waveform, sr = torchaudio.load(wav_path)
-            logger.info(f"📊 読み込み完了 - サンプルレート: {sr}Hz, 形状: {waveform.shape}")
+            # soundfile を使用して音声ファイルを読み込み
+            audio_array, sr = sf.read(wav_path)
+            logger.info(f"📊 読み込み完了 - サンプルレート: {sr}Hz, 形状: {audio_array.shape}")
             
-            # サンプルレート変換（16kHzに統一）
-            if sr != 16000:
-                logger.info(f"🔄 サンプルレート変換: {sr}Hz → 16000Hz")
-                resampler = torchaudio.transforms.Resample(sr, 16000)
-                waveform = resampler(waveform)
+            # AutoFeatureExtractor を使用して前処理
+            logger.info("🔄 AutoFeatureExtractor による前処理中...")
+            inputs = self.feature_extractor(
+                audio_array, 
+                sampling_rate=sr, 
+                return_tensors="pt",
+                padding=True
+            )
             
-            # モノラル化
-            if waveform.shape[0] > 1:
-                waveform = waveform.mean(dim=0).unsqueeze(0)
-            elif waveform.shape[0] == 1:
-                pass  # 既にモノラル
-            else:
-                waveform = waveform.unsqueeze(0)
-            
-            logger.info(f"✅ 前処理完了 - 最終形状: {waveform.shape}")
+            logger.info(f"✅ 前処理完了 - 入力形状: {inputs.input_values.shape}")
             
             # 推論実行
             with torch.no_grad():
                 # 特徴抽出（Upstream）
                 logger.info("🧠 特徴抽出中...")
-                features = self.upstream(waveform).last_hidden_state.mean(dim=1)
+                features = self.upstream(inputs.input_values).last_hidden_state.mean(dim=1)
                 logger.info(f"📈 特徴抽出完了 - 特徴量形状: {features.shape}")
                 
                 # Projector通過

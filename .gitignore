@@ -3,3 +3,6 @@ node_modules/
 .env
 .DS_Store
 kushinada-hubert-large
+kushinada-hubert-large.zip
+kushinada-hubert-large.tar.gz
+backend/__pycache__/kushinada_infer.cpython-310.pyc
