@@ -9,14 +9,6 @@ import { translations } from '@/lib/translations';
 import { AudioRecorder } from '@/components/AudioRecorder';
 import { AudioPlayer } from '@/components/AudioPlayer';
 import EmotionWheel3Layer from '@/components/EmotionWheel3Layer';
-import { SocketDebugger } from '@/components/SocketDebugger';
-import { ConnectionDebugger } from '@/components/ConnectionDebugger';
-import { SimpleTest } from '@/components/SimpleTest';
-import { ManualSocketTest } from '@/components/ManualSocketTest';
-import { BasicDebug } from '@/components/BasicDebug';
-import { DirectSocketTest } from '@/components/DirectSocketTest';
-import { BackendTester } from '@/components/BackendTester';
-import { DirectAudioTest } from '@/components/DirectAudioTest';
 
 export default function RoomPage({ params }: { params: { roomId: string } }) {
   const searchParams = useSearchParams();

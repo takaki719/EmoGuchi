@@ -1,6 +1,31 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
-  // appDir is now stable in Next.js 14
+  // Edge Runtime compatible configuration
+  trailingSlash: true,
+  
+  // Environment variables for Edge Runtime
+  env: {
+    NEXT_PUBLIC_BACKEND_URL: process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:8000',
+  },
+  
+  // Edge Runtime optimizations
+  images: {
+    unoptimized: true,
+  },
+  
+  // WebPack configuration for Edge Runtime compatibility
+  webpack: (config, { isServer }) => {
+    if (!isServer) {
+      // Client-side polyfills for Edge Runtime
+      config.resolve.fallback = {
+        ...config.resolve.fallback,
+        fs: false,
+        net: false,
+        tls: false,
+      };
+    }
+    return config;
+  },
 }
 
 module.exports = nextConfig
