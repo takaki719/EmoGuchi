@@ -6,6 +6,9 @@ import { useLocaleStore } from '@/stores/localeStore';
 import { translations } from '@/lib/translations';
 import LanguageSwitcher from '@/components/LanguageSwitcher';
 
+// Edge Runtime 対応
+export const runtime = 'edge';
+
 export default function Home() {
   const [playerName, setPlayerName] = useState('');
   const [customRoomId, setCustomRoomId] = useState('');

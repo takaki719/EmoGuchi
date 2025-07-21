@@ -3,6 +3,9 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 
+// Edge Runtime 対応
+export const runtime = 'edge';
+
 // 感情の定義
 const EMOTIONS = [
   { id: 0, label: '中立', english: 'neutral', color: 'bg-gray-500', description: '平常心で話してください' },

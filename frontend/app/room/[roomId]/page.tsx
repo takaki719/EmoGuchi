@@ -10,6 +10,9 @@ import { AudioRecorder } from '@/components/AudioRecorder';
 import { AudioPlayer } from '@/components/AudioPlayer';
 import EmotionWheel3Layer from '@/components/EmotionWheel3Layer';
 
+// Edge Runtime 対応
+export const runtime = 'edge';
+
 export default function RoomPage({ params }: { params: { roomId: string } }) {
   const searchParams = useSearchParams();
   const playerName = searchParams.get('name') || '';
