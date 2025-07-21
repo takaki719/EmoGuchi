@@ -41,13 +41,24 @@ export default function SoloPage() {
   const [rounds, setRounds] = useState<RoundData[]>([]);
   const [finalResult, setFinalResult] = useState<GameResult | null>(null);
   const [highScore, setHighScore] = useState(0);
+  const [deviceId, setDeviceId] = useState<string>('');
   
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const audioChunksRef = useRef<Blob[]>([]);
   const router = useRouter();
 
-  // ハイスコアをlocalStorageから読み込み
+  // 端末固定IDとハイスコアをlocalStorageから読み込み
   useEffect(() => {
+    // 端末固定ID取得・生成
+    let savedDeviceId = localStorage.getItem('emoguchi-device-id');
+    if (!savedDeviceId) {
+      // 新しいデバイスIDを生成（UUID v4形式）
+      savedDeviceId = 'device_' + crypto.randomUUID();
+      localStorage.setItem('emoguchi-device-id', savedDeviceId);
+    }
+    setDeviceId(savedDeviceId);
+    
+    // ハイスコア読み込み
     const savedHighScore = localStorage.getItem('emoguchi-solo-highscore');
     if (savedHighScore) {
       setHighScore(parseInt(savedHighScore, 10));
@@ -156,6 +167,7 @@ export default function SoloPage() {
       const formData = new FormData();
       formData.append('file', audioBlob, 'recorded.wav');
       formData.append('target_emotion', currentEmotion.toString());
+      formData.append('device_id', deviceId);  // 端末固定ID追加
       
       const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'}/api/v1/solo/predict`, {
         method: 'POST',

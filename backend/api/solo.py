@@ -6,6 +6,7 @@
 import os
 import tempfile
 import shutil
+import uuid
 import logging
 from fastapi import APIRouter, UploadFile, File, Form, HTTPException
 from fastapi.responses import JSONResponse
@@ -144,7 +145,8 @@ async def generate_dialogue():
 @router.post("/predict", response_model=PredictionResponse)
 async def predict_emotion(
     file: UploadFile = File(...),
-    target_emotion: int = Form(...)
+    target_emotion: int = Form(...),
+    device_id: str = Form(...)
 ):
     """
     音声ファイルから感情を推論し、スコアを算出
@@ -152,6 +154,7 @@ async def predict_emotion(
     Args:
         file: アップロードされた音声ファイル（WebM/WAV等）
         target_emotion: 目標感情のクラスID (0=中立, 1=喜び, 2=怒り, 3=悲しみ)
+        device_id: 端末固定ID（統計管理用）
         
     Returns:
         推論結果とスコア
@@ -160,7 +163,7 @@ async def predict_emotion(
     temp_wav_path = None
     
     try:
-        logger.info(f"🎤 音声推論リクエスト受信 - ファイル: {file.filename}, 目標感情: {target_emotion}")
+        logger.info(f"🎤 音声推論リクエスト受信 - ファイル: {file.filename}, 目標感情: {target_emotion}, デバイス: {device_id}")
         
         # バリデーション
         if target_emotion not in [0, 1, 2, 3]:
@@ -180,12 +183,14 @@ async def predict_emotion(
         
         logger.info(f"📁 受信ファイル情報 - サイズ: {len(file_content)} bytes, 形式: {file.content_type}")
         
-        # 一時ファイルに保存
+        # ハイブリッドストレージに永続保存
+        from services.storage_service import get_storage_service
+        storage_service = get_storage_service()
+        
+        # 一時ファイルに保存（変換用）
         with tempfile.NamedTemporaryFile(delete=False, suffix=".tmp") as temp_input:
             temp_input.write(file_content)
             temp_input_path = temp_input.name
-        
-        logger.info(f"💾 一時ファイル保存: {temp_input_path}")
         
         # WAVファイルに変換
         with tempfile.NamedTemporaryFile(delete=False, suffix=".wav") as temp_wav:
@@ -196,9 +201,20 @@ async def predict_emotion(
         if not conversion_success:
             raise HTTPException(status_code=400, detail="音声ファイルの変換に失敗しました")
         
+        # 永続ストレージに保存
+        with open(temp_wav_path, 'rb') as wav_file:
+            wav_data = wav_file.read()
+        
+        # 端末IDベースのセッションIDを使用
+        audio_url = storage_service.save_audio(wav_data, device_id)
+        logger.info(f"💾 音声ファイル永続保存完了: {audio_url}")
+        
+        # AI推論用のファイルパス取得
+        audio_path = storage_service.get_audio_path(audio_url)
+        
         # AI推論実行
         logger.info("🧠 AI推論実行中...")
-        result = classify_emotion_with_score(temp_wav_path, target_emotion)
+        result = classify_emotion_with_score(audio_path, target_emotion)
         
         # スコア計算：正解なら60点ボーナス
         base_score = result["score"]
@@ -216,6 +232,43 @@ async def predict_emotion(
         else:
             predicted_name = emotion_names.get(result["predicted_class"], "不明")
             message = f"目標は「{target_name}」でしたが、「{predicted_name}」として認識されました。"
+        
+        # データベースに保存
+        try:
+            from services.database_service import get_database_service
+            db_service = await get_database_service()
+            
+            # 端末固定IDを使用
+            user_session_id = device_id
+            
+            # 感情ID変換（数値から文字列へ）
+            emotion_id_map = {0: "neutral", 1: "joy", 2: "anger", 3: "sadness"}
+            target_emotion_str = emotion_id_map.get(target_emotion, "neutral")
+            predicted_emotion_str = emotion_id_map.get(result["predicted_class"], "neutral")
+            
+            # 台詞取得（実際のアプリではフロントエンドから受信）
+            prompt_text = f"AI生成セリフ - {target_name}の感情演技"
+            
+            # DB保存用データ作成
+            session_data = {
+                "session_id": user_session_id,
+                "target_emotion_id": target_emotion_str,
+                "prompt_text": prompt_text,
+                "ai_predicted_emotion_id": predicted_emotion_str,
+                "ai_confidence": result["confidence"] / 100.0,  # 0-1の範囲に変換
+                "is_correct": result["is_correct"],
+                "base_score": base_score,
+                "bonus_score": bonus_score,
+                "final_score": final_score,
+                "audio_url": audio_url,
+                "duration": None  # 音声長は後で実装
+            }
+            
+            solo_session_id = await db_service.save_solo_session(session_data)
+            logger.info(f"💾 ソロセッションDB保存完了: {solo_session_id}")
+            
+        except Exception as db_error:
+            logger.warning(f"⚠️ DB保存エラー（処理は継続）: {db_error}")
         
         # レスポンス作成（修正されたスコアを使用）
         response = PredictionResponse(
@@ -283,3 +336,43 @@ async def health_check():
                 "message": "ソロ感情演技モードでエラーが発生しています"
             }
         )
+
+@router.get("/stats/{device_id}")
+async def get_solo_stats(device_id: str):
+    """ソロプレイ統計取得（端末別）"""
+    try:
+        from services.database_service import get_database_service
+        db_service = await get_database_service()
+        
+        stats = await db_service.get_solo_stats(device_id)
+        logger.info(f"📊 統計取得完了: {device_id}")
+        
+        return {
+            "status": "success",
+            "device_id": device_id,
+            "stats": stats
+        }
+        
+    except Exception as e:
+        logger.error(f"❌ 統計取得エラー: {e}")
+        raise HTTPException(status_code=500, detail="統計の取得に失敗しました")
+
+@router.get("/history/{device_id}")
+async def get_solo_history(device_id: str, limit: int = 10):
+    """ソロプレイ履歴取得（端末別）"""
+    try:
+        from services.database_service import get_database_service
+        db_service = await get_database_service()
+        
+        history = await db_service.get_recent_solo_sessions(device_id, limit)
+        logger.info(f"📜 履歴取得完了: {device_id} ({len(history)}件)")
+        
+        return {
+            "status": "success",
+            "device_id": device_id,
+            "history": history
+        }
+        
+    except Exception as e:
+        logger.error(f"❌ 履歴取得エラー: {e}")
+        raise HTTPException(status_code=500, detail="履歴の取得に失敗しました")

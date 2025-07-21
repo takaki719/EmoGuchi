@@ -1,7 +1,7 @@
 import socketio
 from typing import Dict, Any
 from models.game import Player, GamePhase, Round, AudioRecording
-from services.state_store import state_store
+from services import state_store
 from logging import getLogger
 
 logger = getLogger(__name__)

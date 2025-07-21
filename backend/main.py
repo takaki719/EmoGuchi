@@ -1,10 +1,16 @@
 from fastapi import FastAPI, UploadFile, File, Form
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.staticfiles import StaticFiles
 import socketio
 import logging
+import os
+from contextlib import asynccontextmanager
 from config import settings
 from api import rooms, debug
 from sockets.events import GameSocketEvents
+from services.database_service import DatabaseService
+from services.database_state_store import DatabaseStateStore
+from services.state_store import MemoryStateStore, state_store
 
 # Configure logging to show emoji characters
 logging.basicConfig(
@@ -24,11 +30,46 @@ logging.getLogger('__main__').setLevel(logging.INFO)
 logger = logging.getLogger(__name__)
 logger.info("🎭 EMOGUCHI Backend starting up...")
 
+# Database and StateStore initialization
+async def init_database():
+    """Initialize database and state store"""
+    global state_store
+    
+    # Initialize database if configured
+    if settings.DATABASE_TYPE != "memory":
+        logger.info(f"📊 Initializing {settings.DATABASE_TYPE} database...")
+        db_service = DatabaseService()
+        await db_service.initialize()
+        
+        # Use database-backed state store
+        state_store = DatabaseStateStore(db_service)
+        logger.info("✅ Database state store initialized")
+    else:
+        # Use in-memory state store
+        state_store = MemoryStateStore()
+        logger.info("💾 Using in-memory state store")
+    
+    # Update the state_store reference in dependent modules
+    import services
+    services.state_store = state_store
+    rooms.state_store = state_store
+    debug.state_store = state_store
+
+# Lifespan context manager for FastAPI
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    """Manage application lifespan"""
+    # Startup
+    await init_database()
+    yield
+    # Shutdown (if needed)
+
 # Create FastAPI app
 app = FastAPI(
     title="EMOGUCHI API",
     description="Real-time voice emotion guessing game API",
-    version="1.0.0"
+    version="1.0.0",
+    lifespan=lifespan
 )
 
 # Add CORS middleware
@@ -48,6 +89,7 @@ sio = socketio.AsyncServer(
     engineio_logger=True,
     max_http_buffer_size=10 * 1024 * 1024  # 10MB for audio data
 )
+
 
 # Setup Socket.IO events
 game_events = GameSocketEvents(sio)
@@ -84,6 +126,13 @@ async def health_check():
 @app.get("/socket.io/")
 async def socket_info():
     return {"message": "Socket.IO endpoint"}
+
+# 静的ファイル配信（ローカルストレージ用）
+if settings.STORAGE_TYPE == "local":
+    upload_dir = settings.LOCAL_AUDIO_DIR
+    if not os.path.exists(upload_dir):
+        os.makedirs(upload_dir, exist_ok=True)
+    app.mount("/uploads", StaticFiles(directory=upload_dir), name="uploads")
 
 if __name__ == "__main__":
     import uvicorn
