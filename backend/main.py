@@ -30,6 +30,9 @@ logging.getLogger('__main__').setLevel(logging.INFO)
 logger = logging.getLogger(__name__)
 logger.info("🎭 EMOGUCHI Backend starting up...")
 
+# Global model initialization status
+model_initialization_status = {"initialized": False, "error": None}
+
 # Database and StateStore initialization
 async def init_database():
     """Initialize database and state store"""
@@ -55,12 +58,48 @@ async def init_database():
     rooms.state_store = state_store
     debug.state_store = state_store
 
+async def init_ml_models():
+    """Initialize ML models asynchronously"""
+    global model_initialization_status
+    
+    try:
+        logger.info("🤖 Starting ML model initialization...")
+        
+        # Import and initialize the emotion classifier
+        from kushinada_infer import get_emotion_classifier
+        classifier = get_emotion_classifier()
+        
+        # Trigger initialization in a separate thread to avoid blocking
+        import asyncio
+        import threading
+        
+        def init_models():
+            try:
+                classifier._initialize_models()
+                model_initialization_status["initialized"] = True
+                logger.info("✅ ML models initialized successfully")
+            except Exception as e:
+                model_initialization_status["error"] = str(e)
+                logger.error(f"❌ ML model initialization failed: {e}")
+        
+        # Run initialization in background thread
+        thread = threading.Thread(target=init_models)
+        thread.daemon = True
+        thread.start()
+        
+        logger.info("🚀 ML model initialization started in background")
+        
+    except Exception as e:
+        model_initialization_status["error"] = str(e)
+        logger.error(f"❌ Failed to start ML model initialization: {e}")
+
 # Lifespan context manager for FastAPI
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     """Manage application lifespan"""
     # Startup
     await init_database()
+    await init_ml_models()
     yield
     # Shutdown (if needed)
 
@@ -137,7 +176,32 @@ async def root():
 
 @app.get("/health")
 async def health_check():
-    return {"status": "healthy"}
+    """Enhanced health check including ML model status"""
+    health_status = {
+        "status": "healthy",
+        "timestamp": "2025-01-01T00:00:00Z",  # Will be set dynamically
+        "services": {
+            "api": "healthy",
+            "ml_models": "initializing"
+        }
+    }
+    
+    # Import datetime here to avoid circular imports
+    from datetime import datetime, timezone
+    health_status["timestamp"] = datetime.now(timezone.utc).isoformat()
+    
+    # Check ML model status
+    if model_initialization_status["initialized"]:
+        health_status["services"]["ml_models"] = "healthy"
+    elif model_initialization_status["error"]:
+        health_status["services"]["ml_models"] = "error"
+        health_status["status"] = "degraded"  # Still healthy for basic API, but ML is down
+        health_status["error"] = model_initialization_status["error"]
+    else:
+        health_status["services"]["ml_models"] = "initializing"
+        # Keep overall status as healthy since initialization is in progress
+    
+    return health_status
 
 @app.get("/socket.io/")
 async def socket_info():

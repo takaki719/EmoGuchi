@@ -55,8 +55,8 @@ ENV PYTHONPATH=/app \
 # Expose port (Fly.io will bind to this)
 EXPOSE 8000
 
-# Health check for Fly.io readiness (adjusted for ML model loading)
-HEALTHCHECK --interval=60s --timeout=30s --start-period=300s --retries=3 \
+# Health check for Fly.io readiness (with background ML model initialization)
+HEALTHCHECK --interval=30s --timeout=15s --start-period=60s --retries=3 \
     CMD curl -f http://localhost:${PORT}/health || exit 1
 
 # Production command optimized for Fly.io scale-to-zero
