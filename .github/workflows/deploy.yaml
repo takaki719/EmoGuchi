@@ -9,6 +9,9 @@ jobs:
   deploy:
     name: Deploy backend to Fly.io
     runs-on: ubuntu-latest
+      defaults:
+      run:
+        working-directory: backend  # ← ここがポイント
 
     steps:
       - name: Checkout code
