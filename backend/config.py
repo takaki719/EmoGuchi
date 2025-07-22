@@ -25,6 +25,7 @@ class Settings:
     # API settings
     OPENAI_API_KEY: str = os.getenv("OPENAI_API_KEY", "")
     DEBUG_API_TOKEN: str = os.getenv("DEBUG_API_TOKEN", "debug-token-123")
+    HUGGINGFACE_TOKEN: str = os.getenv("HUGGINGFACE_TOKEN", "")
     
     # Game settings
     MAX_PLAYERS_PER_ROOM: int = int(os.getenv("MAX_PLAYERS_PER_ROOM", "16"))
