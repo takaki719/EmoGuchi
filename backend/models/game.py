@@ -3,7 +3,7 @@ from typing import Dict, List, Optional, Literal
 from enum import Enum
 import uuid
 import random
-from datetime import datetime
+from datetime import datetime, timezone
 
 class GameMode(str, Enum):
     BASIC = "basic"
@@ -159,3 +159,12 @@ class RoundResult(BaseModel):
 class ErrorResponse(BaseModel):
     code: str
     message: str
+
+class AudioRecording(BaseModel):
+    """Audio recording data model for state store"""
+    session_id: str
+    round_id: str
+    audio_data: bytes
+    audio_url: Optional[str] = None
+    is_processed: bool = False
+    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))

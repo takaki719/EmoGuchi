@@ -72,10 +72,26 @@ app = FastAPI(
     lifespan=lifespan
 )
 
-# Add CORS middleware
+# Add CORS middleware with dynamic origin validation
+def is_allowed_origin(origin: str) -> bool:
+    """Check if origin is allowed, supporting wildcards"""
+    if not origin:
+        return False
+    
+    for allowed in settings.ALLOWED_ORIGINS:
+        if allowed == origin:
+            return True
+        # Handle wildcard patterns
+        if "*" in allowed:
+            pattern = allowed.replace("*", ".*")
+            import re
+            if re.match(f"^{pattern}$", origin):
+                return True
+    return False
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=settings.ALLOWED_ORIGINS,
+    allow_origin_regex=r"https://.*\.emoguchi\.pages\.dev|https://emoguchi\.pages\.dev|http://localhost:3000|http://localhost:3001|https://emoguchi\.vercel\.app",
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -84,7 +100,7 @@ app.add_middleware(
 # Create Socket.IO server
 sio = socketio.AsyncServer(
     async_mode="asgi",
-    cors_allowed_origins=settings.ALLOWED_ORIGINS,
+    cors_allowed_origins="*",  # Allow all origins for Socket.IO
     logger=True,
     engineio_logger=True,
     max_http_buffer_size=10 * 1024 * 1024  # 10MB for audio data

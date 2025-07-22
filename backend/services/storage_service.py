@@ -44,7 +44,6 @@ class AudioStorageService:
             
             # R2対応のS3互換クライアント設定
             client_config = {
-                'service_name': 's3',
                 'region_name': settings.S3_REGION,
                 'aws_access_key_id': settings.AWS_ACCESS_KEY_ID,
                 'aws_secret_access_key': settings.AWS_SECRET_ACCESS_KEY
@@ -54,7 +53,7 @@ class AudioStorageService:
             if settings.R2_ENDPOINT_URL:
                 client_config['endpoint_url'] = settings.R2_ENDPOINT_URL
             
-            self.s3_client = boto3.client(**client_config)
+            self.s3_client = boto3.client('s3', **client_config)
             
             # バケット存在確認
             try:

@@ -16,7 +16,10 @@ class Settings:
     ALLOWED_ORIGINS: List[str] = [
         "http://localhost:3000",
         "http://localhost:3001",
-        "https://emoguchi.vercel.app"
+        "https://emoguchi.vercel.app",
+        "https://emoguchi.pages.dev",
+        "https://*.emoguchi.pages.dev",
+        "https://503fc1a1.emoguchi.pages.dev"  # プレビューデプロイ用
     ]
     
     # API settings
