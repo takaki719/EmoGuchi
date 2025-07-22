@@ -32,11 +32,15 @@ class Settings:
     STORAGE_TYPE: str = os.getenv("STORAGE_TYPE", "local")  # "local" or "s3"
     LOCAL_AUDIO_DIR: str = os.getenv("LOCAL_AUDIO_DIR", "./uploads/audio")
     
-    # S3 settings (for production)
+    # S3/R2 settings (for production)
     S3_BUCKET: str = os.getenv("S3_BUCKET", "emoguchi-audio")
-    S3_REGION: str = os.getenv("S3_REGION", "ap-northeast-1")
+    S3_REGION: str = os.getenv("S3_REGION", "auto")  # R2では "auto"
     AWS_ACCESS_KEY_ID: str = os.getenv("AWS_ACCESS_KEY_ID", "")
     AWS_SECRET_ACCESS_KEY: str = os.getenv("AWS_SECRET_ACCESS_KEY", "")
+    
+    # R2 specific settings
+    R2_ENDPOINT_URL: str = os.getenv("R2_ENDPOINT_URL", "")
+    R2_ACCOUNT_ID: str = os.getenv("R2_ACCOUNT_ID", "")
     
     # Database settings
     DATABASE_TYPE: str = os.getenv("DATABASE_TYPE", "sqlite")  # "sqlite" or "postgresql"

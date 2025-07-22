@@ -1,0 +1,90 @@
+# Git and version control
+.git
+.gitignore
+.gitattributes
+.github
+
+# Documentation
+README.md
+docs/
+*.md
+
+# Development files
+.env
+.env.local
+.env.development
+.env.test
+.vscode/
+.idea/
+
+# Frontend files (not needed for backend container)
+frontend/
+node_modules/
+
+# Python cache and temp files
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+pip-log.txt
+pip-delete-this-directory.txt
+
+# Virtual environments
+venv/
+env/
+ENV/
+
+# Testing
+.pytest_cache/
+.coverage
+htmlcov/
+.tox/
+
+# Jupyter notebooks
+*.ipynb
+.ipynb_checkpoints/
+
+# macOS
+.DS_Store
+.AppleDouble
+.LSOverride
+
+# Windows
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+
+# Linux
+*~
+
+# Temporary files
+*.tmp
+*.temp
+temp/
+tmp/
+
+# Local database and storage (will use Neon + R2 in production)
+*.db
+*.sqlite
+*.sqlite3
+uploads/
+ckpt/
+
+# Docker files (not needed inside container)
+Dockerfile*
+docker-compose*
+.dockerignore
+
+# Deployment files
+fly.toml
+.flyctl
+vercel.json
+.vercel/
+
+# IDE and editor files
+*.swp
+*.swo
+*~
+.vscode/
+.idea/

@@ -42,12 +42,19 @@ class AudioStorageService:
             import boto3
             from botocore.exceptions import ClientError
             
-            self.s3_client = boto3.client(
-                's3',
-                region_name=settings.S3_REGION,
-                aws_access_key_id=settings.AWS_ACCESS_KEY_ID,
-                aws_secret_access_key=settings.AWS_SECRET_ACCESS_KEY
-            )
+            # R2対応のS3互換クライアント設定
+            client_config = {
+                'service_name': 's3',
+                'region_name': settings.S3_REGION,
+                'aws_access_key_id': settings.AWS_ACCESS_KEY_ID,
+                'aws_secret_access_key': settings.AWS_SECRET_ACCESS_KEY
+            }
+            
+            # R2エンドポイントが設定されている場合
+            if settings.R2_ENDPOINT_URL:
+                client_config['endpoint_url'] = settings.R2_ENDPOINT_URL
+            
+            self.s3_client = boto3.client(**client_config)
             
             # バケット存在確認
             try:
@@ -127,8 +134,14 @@ class AudioStorageService:
             )
             
             # 公開URLを生成
-            s3_url = f"https://{settings.S3_BUCKET}.s3.{settings.S3_REGION}.amazonaws.com/{s3_key}"
-            logger.info(f"☁️ S3保存完了: {s3_url}")
+            if settings.R2_ACCOUNT_ID:
+                # R2のURLフォーマット
+                s3_url = f"https://{settings.R2_ACCOUNT_ID}.r2.cloudflarestorage.com/{settings.S3_BUCKET}/{s3_key}"
+            else:
+                # 通常のS3 URLフォーマット
+                s3_url = f"https://{settings.S3_BUCKET}.s3.{settings.S3_REGION}.amazonaws.com/{s3_key}"
+            
+            logger.info(f"☁️ ストレージ保存完了: {s3_url}")
             return s3_url
             
         except Exception as e:

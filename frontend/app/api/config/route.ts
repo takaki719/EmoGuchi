@@ -4,7 +4,7 @@ import { NextResponse } from 'next/server';
 export const runtime = 'edge';
 
 export async function GET() {
-  const backendUrl = process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:8000';
+  const backendUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
   
   return NextResponse.json({
     backendUrl,
