@@ -133,9 +133,11 @@ class AudioStorageService:
             )
             
             # 公開URLを生成
-            if settings.R2_ACCOUNT_ID:
-                # R2のURLフォーマット
-                s3_url = f"https://{settings.R2_ACCOUNT_ID}.r2.cloudflarestorage.com/{settings.S3_BUCKET}/{s3_key}"
+            if settings.R2_ENDPOINT_URL:
+                # R2のURLフォーマット（実際のエンドポイントから抽出）
+                # settings.R2_ENDPOINT_URL = "https://{account-id}.r2.cloudflarestorage.com"
+                base_url = settings.R2_ENDPOINT_URL.rstrip('/')
+                s3_url = f"{base_url}/{settings.S3_BUCKET}/{s3_key}"
             else:
                 # 通常のS3 URLフォーマット
                 s3_url = f"https://{settings.S3_BUCKET}.s3.{settings.S3_REGION}.amazonaws.com/{s3_key}"
@@ -167,12 +169,29 @@ class AudioStorageService:
             raise
     
     def _download_from_s3(self, s3_url: str) -> str:
-        """S3から一時ファイルにダウンロード"""
+        """S3/R2から一時ファイルにダウンロード"""
         try:
             import tempfile
             
-            # S3キーを抽出
-            s3_key = s3_url.split(f"{settings.S3_BUCKET}.s3.{settings.S3_REGION}.amazonaws.com/")[1]
+            # URLからS3キーを抽出（R2とS3の両方に対応）
+            s3_key = None
+            
+            if settings.R2_ENDPOINT_URL and settings.R2_ENDPOINT_URL.replace('https://', '') in s3_url:
+                # R2のURL形式: https://{endpoint}/{bucket}/{key}
+                base_url = settings.R2_ENDPOINT_URL.rstrip('/')
+                parts = s3_url.split(f"{base_url}/{settings.S3_BUCKET}/")
+                if len(parts) > 1:
+                    s3_key = parts[1]
+            else:
+                # 通常のS3 URL形式: https://{bucket}.s3.{region}.amazonaws.com/{key}
+                parts = s3_url.split(f"{settings.S3_BUCKET}.s3.{settings.S3_REGION}.amazonaws.com/")
+                if len(parts) > 1:
+                    s3_key = parts[1]
+            
+            if not s3_key:
+                raise ValueError(f"URLからS3キーを抽出できませんでした: {s3_url}")
+            
+            logger.info(f"📥 S3/R2からダウンロード開始: {s3_key}")
             
             # 一時ファイルにダウンロード
             with tempfile.NamedTemporaryFile(suffix='.wav', delete=False) as tmp_file:
@@ -181,6 +200,7 @@ class AudioStorageService:
                     s3_key,
                     tmp_file
                 )
+                logger.info(f"✅ 一時ファイル作成完了: {tmp_file.name}")
                 return tmp_file.name
                 
         except Exception as e:
