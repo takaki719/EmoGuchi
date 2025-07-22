@@ -55,9 +55,9 @@ ENV PYTHONPATH=/app \
 # Expose port (Fly.io will bind to this)
 EXPOSE 8000
 
-# Health check for Fly.io readiness
-HEALTHCHECK --interval=30s --timeout=10s --start-period=10s --retries=3 \
-    CMD curl -f http://localhost:${PORT}/api/v1/solo/health || exit 1
+# Health check for Fly.io readiness (adjusted for ML model loading)
+HEALTHCHECK --interval=60s --timeout=30s --start-period=120s --retries=3 \
+    CMD curl -f http://localhost:${PORT}/health || exit 1
 
 # Production command optimized for Fly.io scale-to-zero
 CMD ["uvicorn", "main:socket_app", "--host", "0.0.0.0", "--port", "8000", "--workers", "1", "--log-level", "info", "--access-log"]

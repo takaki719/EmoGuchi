@@ -20,14 +20,14 @@ primary_region = "nrt"  # Tokyo region for lower latency
   auto_start_machines = true
   min_machines_running = 0  # Scale to zero for cost savings
 
-# Health check configuration
-[http_service.checks]
-  [http_service.checks.health]
-    grace_period = "30s"
-    interval = "30s"
-    method = "GET"
-    timeout = "15s"
-    path = "/health"
+# Health check configuration (temporarily disabled for ML model loading)
+# [http_service.checks]
+#   [http_service.checks.health]
+#     grace_period = "30s"
+#     interval = "30s"
+#     method = "GET"
+#     timeout = "15s"
+#     path = "/health"
 
 # Machine configuration optimized for ML workload
 [[vm]]
