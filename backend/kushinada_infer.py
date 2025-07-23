@@ -7,10 +7,58 @@ import torch
 import os
 import logging
 import soundfile as sf
+import tarfile
+import tempfile
+import shutil
 from typing import Tuple
 from transformers import HubertModel, AutoFeatureExtractor
 
 logger = logging.getLogger(__name__)
+
+def download_model_from_r2():
+    """R2からKushinadaモデルをダウンロードして解凍"""
+    from config import settings
+    from services.storage_service import StorageService
+    
+    try:
+        logger.info("📥 R2からKushinadaモデルをダウンロード中...")
+        
+        # ローカルパスの確認
+        local_model_path = settings.KUSHINADA_LOCAL_PATH
+        if os.path.exists(local_model_path):
+            logger.info(f"✅ モデルは既にローカルに存在: {local_model_path}")
+            return local_model_path
+        
+        # ストレージサービス初期化
+        storage = StorageService()
+        
+        # 一時ファイルにダウンロード
+        with tempfile.NamedTemporaryFile(suffix='.tar.gz', delete=False) as tmp_file:
+            tmp_path = tmp_file.name
+            
+        logger.info(f"📦 ダウンロード中: {settings.KUSHINADA_MODEL_R2_KEY}")
+        
+        # R2からダウンロード
+        storage.download_file(settings.KUSHINADA_MODEL_R2_KEY, tmp_path)
+        
+        logger.info("📂 モデルを解凍中...")
+        
+        # 親ディレクトリを作成
+        os.makedirs(os.path.dirname(local_model_path), exist_ok=True)
+        
+        # tar.gzを解凍
+        with tarfile.open(tmp_path, 'r:gz') as tar:
+            tar.extractall(os.path.dirname(local_model_path))
+        
+        # 一時ファイルを削除
+        os.unlink(tmp_path)
+        
+        logger.info(f"✅ モデル解凍完了: {local_model_path}")
+        return local_model_path
+        
+    except Exception as e:
+        logger.error(f"❌ R2からのモデルダウンロード失敗: {e}")
+        raise
 
 class EmotionClassifier:
     """感情分類器クラス"""
@@ -23,7 +71,10 @@ class EmotionClassifier:
             2: "怒り（angry）",
             3: "悲しみ（sad）"
         }
-        self.model = "imprt/kushinada-hubert-large"
+        # モデルパスを設定から取得
+        from config import settings
+        self.model_source = settings.KUSHINADA_MODEL_SOURCE
+        self.model_path = settings.KUSHINADA_LOCAL_PATH if self.model_source == "r2" else "imprt/kushinada-hubert-large"
         self.feature_extractor = None
         self.upstream = None
         self.projector = None
@@ -42,23 +93,45 @@ class EmotionClassifier:
             try:
                 from config import settings
                 
-                # Hugging Face認証トークンの設定
-                token_kwargs = {}
-                if settings.HUGGINGFACE_TOKEN:
-                    token_kwargs['token'] = settings.HUGGINGFACE_TOKEN
-                    logger.info("🔐 Hugging Face認証トークンを使用")
+                # モデルソースに応じてパスを決定（フォールバック付き）
+                model_loaded = False
                 
-                # AutoFeatureExtractor を使用
-                self.feature_extractor = AutoFeatureExtractor.from_pretrained(
-                    self.model, **token_kwargs
-                )
-                logger.info("✅ AutoFeatureExtractor 読み込み完了")
+                if self.model_source == "r2":
+                    try:
+                        logger.info("📥 R2からモデルをダウンロード中...")
+                        model_path = download_model_from_r2()
+                        logger.info(f"✅ R2からのダウンロード完了: {model_path}")
+                        
+                        # ローカルパスから読み込み
+                        self.feature_extractor = AutoFeatureExtractor.from_pretrained(model_path)
+                        self.upstream = HubertModel.from_pretrained(model_path).eval()
+                        logger.info("✅ R2からのKushinada Hubertモデル読み込み完了")
+                        model_loaded = True
+                        
+                    except Exception as r2_error:
+                        logger.warning(f"⚠️ R2からのダウンロード失敗: {r2_error}")
+                        logger.info("🔄 Hugging Faceにフォールバック中...")
                 
-                # HubertModel の読み込み
-                self.upstream = HubertModel.from_pretrained(
-                    self.model, **token_kwargs
-                ).eval()
-                logger.info("✅ Kushinada Hubert モデル読み込み完了")
+                # R2が失敗した場合、またはデフォルトでHugging Faceを使用
+                if not model_loaded:
+                    # Hugging Face認証トークンの設定
+                    token_kwargs = {}
+                    if settings.HUGGINGFACE_TOKEN:
+                        token_kwargs['token'] = settings.HUGGINGFACE_TOKEN
+                        logger.info("🔐 Hugging Face認証トークンを使用")
+                    
+                    # AutoFeatureExtractor を使用
+                    self.feature_extractor = AutoFeatureExtractor.from_pretrained(
+                        "imprt/kushinada-hubert-large", **token_kwargs
+                    )
+                    logger.info("✅ AutoFeatureExtractor 読み込み完了")
+                    
+                    # HubertModel の読み込み
+                    self.upstream = HubertModel.from_pretrained(
+                        "imprt/kushinada-hubert-large", **token_kwargs
+                    ).eval()
+                    logger.info("✅ Kushinada Hubert モデル読み込み完了")
+                
                 self.use_kushinada = True
             except Exception as e:
                 logger.warning(f"⚠️ Kushinada モデル読み込み失敗: {e}")

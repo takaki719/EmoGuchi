@@ -207,6 +207,30 @@ class AudioStorageService:
             logger.error(f"❌ S3ダウンロードエラー: {e}")
             raise
     
+    def download_file(self, s3_key: str, local_path: str):
+        """S3/R2から指定されたキーのファイルをローカルパスにダウンロード"""
+        try:
+            if self.storage_type == "local":
+                raise ValueError("ローカルストレージモードではS3ダウンロードは使用できません")
+            
+            logger.info(f"📥 S3/R2からダウンロード開始: {s3_key} -> {local_path}")
+            
+            # ディレクトリがない場合は作成
+            os.makedirs(os.path.dirname(local_path), exist_ok=True)
+            
+            # S3からダウンロード
+            self.s3_client.download_file(
+                settings.S3_BUCKET,
+                s3_key,
+                local_path
+            )
+            
+            logger.info(f"✅ ダウンロード完了: {local_path}")
+            
+        except Exception as e:
+            logger.error(f"❌ ファイルダウンロードエラー: {e}")
+            raise
+    
     def cleanup_temp_files(self, temp_paths: list):
         """一時ファイルの削除"""
         for path in temp_paths:
@@ -216,6 +240,9 @@ class AudioStorageService:
                     logger.debug(f"🗑️ 一時ファイル削除: {path}")
             except Exception as e:
                 logger.warning(f"⚠️ 一時ファイル削除失敗: {e}")
+
+# エイリアス（後方互換性のため）
+StorageService = AudioStorageService
 
 # グローバルインスタンス
 _storage_service = None

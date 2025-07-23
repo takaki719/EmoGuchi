@@ -46,6 +46,11 @@ class Settings:
     R2_ENDPOINT_URL: str = os.getenv("R2_ENDPOINT_URL", "")
     R2_ACCOUNT_ID: str = os.getenv("R2_ACCOUNT_ID", "")
     
+    # Model settings
+    KUSHINADA_MODEL_SOURCE: str = os.getenv("KUSHINADA_MODEL_SOURCE", "huggingface")  # "huggingface" or "r2"
+    KUSHINADA_MODEL_R2_KEY: str = os.getenv("KUSHINADA_MODEL_R2_KEY", "models/kushinada-hubert-large.tar.gz")
+    KUSHINADA_LOCAL_PATH: str = os.getenv("KUSHINADA_LOCAL_PATH", "./models/kushinada-hubert-large")
+    
     # Database settings
     DATABASE_TYPE: str = os.getenv("DATABASE_TYPE", "sqlite")  # "sqlite" or "postgresql"
     
