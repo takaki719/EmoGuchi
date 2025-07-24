@@ -24,6 +24,25 @@ class DatabaseStateStore(StateStore):
     def __init__(self, db_service: DatabaseService):
         self.db = db_service
     
+    def _map_phase_to_status(self, phase: str) -> str:
+        """Map GamePhase to ChatSession status"""
+        phase_mapping = {
+            "waiting": "waiting",
+            "in_round": "playing", 
+            "result": "playing",
+            "closed": "finished"
+        }
+        return phase_mapping.get(phase, "waiting")
+    
+    def _map_status_to_phase(self, status: str) -> str:
+        """Map ChatSession status to GamePhase"""
+        status_mapping = {
+            "waiting": "waiting",
+            "playing": "in_round",  # Default to in_round for playing
+            "finished": "closed"
+        }
+        return status_mapping.get(status, "waiting")
+    
     async def create_room(self, room: Room) -> None:
         """Create a new room in the database"""
         async with self.db.get_session() as session:
@@ -115,7 +134,7 @@ class DatabaseStateStore(StateStore):
                 id=chat_session.room_code,  # Room.id is the room_code
                 players=players,
                 config=config,
-                phase=chat_session.status,  # Map status to phase
+                phase=self._map_status_to_phase(chat_session.status),  # Map status to phase
                 current_round=rounds[-1] if rounds else None,
                 round_history=rounds,
                 created_at=chat_session.created_at
@@ -135,14 +154,7 @@ class DatabaseStateStore(StateStore):
             if not chat_session:
                 raise ValueError(f"Room {room.id} not found")
             
-            # Map GamePhase to ChatSession status
-            phase_mapping = {
-                "waiting": "waiting",
-                "in_round": "playing", 
-                "result": "playing",
-                "closed": "finished"
-            }
-            chat_session.status = phase_mapping.get(room.phase, "waiting")
+            chat_session.status = self._map_phase_to_status(room.phase)
             if room.phase == "closed":
                 chat_session.finished_at = datetime.now(timezone.utc)
             
