@@ -2,6 +2,7 @@
 
 import React, { useState, useRef, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
+import { getApiUrl } from '@/utils/api';
 
 // Edge Runtime 対応
 export const runtime = 'edge';
@@ -91,7 +92,7 @@ export default function SoloPage() {
     try {
       setGameState('loadingDialogue');
       
-      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'}/api/v1/solo/dialogue`);
+      const response = await fetch(`${getApiUrl()}/api/v1/solo/dialogue`);
       if (!response.ok) {
         throw new Error('セリフの取得に失敗しました');
       }
@@ -172,7 +173,7 @@ export default function SoloPage() {
       formData.append('target_emotion', currentEmotion.toString());
       formData.append('device_id', deviceId);  // 端末固定ID追加
       
-      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'}/api/v1/solo/predict`, {
+      const response = await fetch(`${getApiUrl()}/api/v1/solo/predict`, {
         method: 'POST',
         body: formData,
       });

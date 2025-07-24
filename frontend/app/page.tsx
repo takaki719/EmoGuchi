@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import { useLocaleStore } from '@/stores/localeStore';
 import { translations } from '@/lib/translations';
 import LanguageSwitcher from '@/components/LanguageSwitcher';
+import { getApiUrl } from '@/utils/api';
 
 // Edge Runtime 対応
 export const runtime = 'edge';
@@ -57,7 +58,7 @@ export default function Home() {
         requestBody.room_id = customRoomId.trim();
       }
 
-      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'}/api/v1/rooms`, {
+      const response = await fetch(`${getApiUrl()}/api/v1/rooms`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

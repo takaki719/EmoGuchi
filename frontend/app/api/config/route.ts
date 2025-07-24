@@ -1,10 +1,11 @@
 import { NextResponse } from 'next/server';
+import { getApiUrl } from '@/utils/api';
 
 // Edge Runtime対応
 export const runtime = 'edge';
 
 export async function GET() {
-  const backendUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
+  const backendUrl = getApiUrl();
   
   return NextResponse.json({
     backendUrl,

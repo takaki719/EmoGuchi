@@ -9,6 +9,7 @@ import { translations } from '@/lib/translations';
 import { AudioRecorder } from '@/components/AudioRecorder';
 import { AudioPlayer } from '@/components/AudioPlayer';
 import EmotionWheel3Layer from '@/components/EmotionWheel3Layer';
+import { getApiUrl } from '@/utils/api';
 
 // Edge Runtime 対応
 export const runtime = 'edge';
@@ -153,7 +154,7 @@ export default function RoomPage({ params }: { params: { roomId: string } }) {
         return;
       }
 
-      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'}/api/v1/rooms/${encodeURIComponent(roomId)}/config`, {
+      const response = await fetch(`${getApiUrl()}/api/v1/rooms/${encodeURIComponent(roomId)}/config`, {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',

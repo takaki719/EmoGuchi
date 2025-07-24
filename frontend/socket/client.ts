@@ -1,11 +1,12 @@
 import { io, Socket } from 'socket.io-client';
 import { SocketEvents } from '@/types/game';
+import { getApiUrl } from '@/utils/api';
 
 class SocketClient {
   private socket: Socket | null = null;
   private url: string;
 
-  constructor(url: string = typeof window !== 'undefined' ? (process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000') : 'http://localhost:8000') {
+  constructor(url: string = typeof window !== 'undefined' ? getApiUrl() : 'http://localhost:8000') {
     this.url = url;
   }
 
