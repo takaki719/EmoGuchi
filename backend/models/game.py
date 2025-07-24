@@ -162,6 +162,7 @@ class ErrorResponse(BaseModel):
 
 class AudioRecording(BaseModel):
     """Audio recording data model for state store"""
+    id: str = Field(default_factory=lambda: str(uuid.uuid4()))
     session_id: str
     round_id: str
     audio_data: bytes

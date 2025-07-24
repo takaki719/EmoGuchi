@@ -146,7 +146,7 @@ async def generate_dialogue():
 async def predict_emotion(
     file: UploadFile = File(...),
     target_emotion: int = Form(...),
-    device_id: str = Form(...)
+    device_id: str = Form(None)
 ):
     """
     音声ファイルから感情を推論し、スコアを算出
@@ -163,6 +163,15 @@ async def predict_emotion(
     temp_wav_path = None
     
     try:
+        # リクエストパラメータのデバッグログ
+        logger.info(f"🔍 受信パラメータ - file: {file}, target_emotion: {target_emotion}, device_id: {device_id}")
+        logger.info(f"🔍 ファイル詳細 - filename: {file.filename if file else 'None'}, content_type: {file.content_type if file else 'None'}")
+        
+        # device_idがNoneの場合はランダムUUIDを生成
+        if device_id is None:
+            device_id = str(uuid.uuid4())
+            logger.info(f"📱 デバイスIDが未指定のため、一時ID生成: {device_id}")
+        
         logger.info(f"🎤 音声推論リクエスト受信 - ファイル: {file.filename}, 目標感情: {target_emotion}, デバイス: {device_id}")
         
         # バリデーション
@@ -285,9 +294,10 @@ async def predict_emotion(
         
         return response
         
-    except HTTPException:
-        # HTTPExceptionはそのまま再発生
-        raise
+    except HTTPException as he:
+        # HTTPExceptionの詳細をログに記録
+        logger.error(f"❌ HTTPException: status={he.status_code}, detail={he.detail}")
+        raise he
     except Exception as e:
         logger.error(f"❌ 予期しないエラー: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail=f"内部サーバーエラー: {str(e)}")

@@ -170,7 +170,7 @@ class DatabaseStateStore(StateStore):
             )
             existing_round_numbers = {r.round_number for r in existing_rounds.scalars()}
             
-            for round_data in room.rounds:
+            for round_data in room.round_history:
                 if round_data.round_number not in existing_round_numbers:
                     # Get emotion type
                     emotion_result = await session.execute(

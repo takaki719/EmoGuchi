@@ -51,6 +51,25 @@ export default function RoomPage({ params }: { params: { roomId: string } }) {
   const { locale } = useLocaleStore();
   const t = translations[locale];
 
+  // Helper function to translate emotion ID to localized name using i18n
+  const getEmotionDisplayName = (emotion: string): string => {
+    if (!emotion) return '';
+    
+    // Check if it's already a localized emotion name
+    const currentEmotions = Object.values(t.emotions) as string[];
+    if (currentEmotions.includes(emotion)) {
+      return emotion;
+    }
+    
+    // Map emotion ID to localized name using i18n
+    const emotionKey = emotion as keyof typeof t.emotions;
+    if (emotionKey in t.emotions) {
+      return t.emotions[emotionKey];
+    }
+    
+    return emotion; // fallback to original if not found
+  };
+
   useEffect(() => {
     if (playerName) {
       setPlayerName(playerName);
@@ -134,7 +153,12 @@ export default function RoomPage({ params }: { params: { roomId: string } }) {
       const { PLUTCHIK_EMOTIONS_3_LAYER } = require('@/components/EmotionWheel3Layer');
       const emotion = PLUTCHIK_EMOTIONS_3_LAYER.find((e: any) => e.id === emotionId);
       if (emotion) {
-        return `${emotion.nameJa} (${emotion.nameEn})`;
+        // For wheel mode, show both localized names based on current language
+        if (locale === 'ja') {
+          return emotion.nameJa;
+        } else {
+          return emotion.nameEn;
+        }
       }
     } else {
       // For choice modes, use emotionChoices
@@ -142,6 +166,9 @@ export default function RoomPage({ params }: { params: { roomId: string } }) {
       if (emotion) {
         return emotion.name;
       }
+      
+      // Fallback: try to translate using getEmotionDisplayName
+      return getEmotionDisplayName(emotionId);
     }
     return emotionId; // fallback
   };
@@ -546,7 +573,7 @@ export default function RoomPage({ params }: { params: { roomId: string } }) {
 
           {roomState.phase === 'in_round' && (
             <div className="space-y-6">
-              {currentRound ? (
+              {currentRound && (
                 <>
                   {!isCurrentSpeaker ? (
                     // リスナー向けの表示
@@ -601,7 +628,9 @@ export default function RoomPage({ params }: { params: { roomId: string } }) {
                           {speakerEmotion && (
                             <div>
                               <h4 className="font-semibold text-orange-700 mb-1">{t.game.emotion}</h4>
-                              <p className="text-lg font-medium text-orange-900 bg-white p-3 rounded border">{speakerEmotion}</p>
+                              <p className="text-lg font-medium text-orange-900 bg-white p-3 rounded border">
+                                {speakerEmotion || ''}
+                              </p>
                             </div>
                           )}
                         </div>
@@ -633,11 +662,6 @@ export default function RoomPage({ params }: { params: { roomId: string } }) {
                     </div>
                   )}
                 </>
-              ) : (
-                <div className="text-center">
-                  <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
-                  <p>{t.common.loadingRoundData}</p>
-                </div>
               )}
 
               {currentRound && !isCurrentSpeaker && !playerVote && (
@@ -710,7 +734,7 @@ export default function RoomPage({ params }: { params: { roomId: string } }) {
             <div className="space-y-4">
               <h2 className="text-xl font-semibold text-center">{t.game.resultAnnouncement}</h2>
               {/* Player's Vote Result */}
-              {lastResult.votes && lastResult.votes[playerName] ? (
+              {lastResult.votes && lastResult.votes[playerName] && (
                 <div className={`p-4 rounded-lg border-2 ${
                   (() => {
                     const playerVotedEmotion = lastResult.votes[playerName];
@@ -761,16 +785,18 @@ export default function RoomPage({ params }: { params: { roomId: string } }) {
                     })()}
                   </div>
                 </div>
-              ):(
-                // スピーカーの場合
-      <div className="bg-blue-50 p-6 rounded-lg text-center border border-blue-200">
-        <p className="text-lg font-semibold text-blue-700 mb-2">
-          {t.game.youWereSpeaker}
-        </p>
-        <p className="text-xl font-bold">
-          {t.game.correctAnswerLabel} {lastResult.correct_emotion}
-        </p>
-      </div>
+              )}
+              
+              {/* Speaker Result */}
+              {lastResult.votes && !lastResult.votes[playerName] && (
+                <div className="bg-blue-50 p-6 rounded-lg text-center border border-blue-200">
+                  <p className="text-lg font-semibold text-blue-700 mb-2">
+                    {t.game.youWereSpeaker}
+                  </p>
+                  <p className="text-xl font-bold">
+                    {t.game.correctAnswerLabel} {lastResult.correct_emotion}
+                  </p>
+                </div>
               )}
               
               <div>

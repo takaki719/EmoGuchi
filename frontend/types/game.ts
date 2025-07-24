@@ -68,6 +68,7 @@ export interface RoundResult {
 }
 
 export interface GameComplete {
+  isComplete: boolean;
   rankings: Array<{
     name: string;
     score: number;
@@ -75,6 +76,7 @@ export interface GameComplete {
   }>;
   totalRounds: number;
   totalCycles?: number;
+  finalScores?: { [playerName: string]: number };
 }
 
 export interface EmotionChoice {

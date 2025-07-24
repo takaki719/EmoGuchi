@@ -104,19 +104,49 @@ export const useSocket = () => {
 
     socket.on('speaker_emotion', (data: any) => {
       console.log('🎭 speaker_emotion event received:', data);
+      console.log('🎭 emotionName:', data.emotionName);
+      console.log('🎭 emotionId:', data.emotionId);
       
       // For now, just process all speaker emotions to ensure functionality
       console.log('✅ Processing speaker_emotion (simplified)');
-      store.setSpeakerEmotion(data.emotionName || data.emotionId);
+      
+      // Prioritize emotionName (Japanese) over emotionId (English)
+      const emotionToSet = data.emotionName || data.emotionId;
+      console.log('🎭 Setting emotion:', emotionToSet);
+      store.setSpeakerEmotion(emotionToSet);
     });
 
     socket.on('round_result', (data: RoundResult) => {
       console.log('Received round_result:', data);
       console.log('correct_emotion:', data.correct_emotion);
       console.log('correctEmotionId:', data.correctEmotionId);
+      console.log('isGameComplete:', data.isGameComplete);
+      
       store.setLastResult(data);
       store.setCurrentRound(null);
       store.setSpeakerEmotion(null);
+      
+      // Set game complete if the game is finished
+      if (data.isGameComplete) {
+        console.log('🏆 Game completed! Setting gameComplete state');
+        store.setGameComplete({
+          isComplete: true,
+          totalRounds: data.completedRounds || 0,
+          finalScores: data.scores,
+          rankings: Object.entries(data.scores)
+            .sort(([,a], [,b]) => b - a)
+            .map(([name, score], index) => ({ name, score, rank: index + 1 }))
+        });
+      } else {
+        // If game continues, update room state to waiting phase to avoid loading screen
+        const currentRoomState = store.roomState;
+        if (currentRoomState) {
+          store.setRoomState({
+            ...currentRoomState,
+            phase: 'waiting'
+          });
+        }
+      }
     });
 
     socket.on('game_complete', (data) => {
