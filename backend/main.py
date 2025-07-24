@@ -127,10 +127,12 @@ def is_allowed_origin(origin: str) -> bool:
             if re.match(f"^{pattern}$", origin):
                 return True
     return False
-
+origins = [
+    "https://ce742f31.emoguchi.pages.dev",  # Cloudflare Pages のURL
+]
 app.add_middleware(
     CORSMiddleware,
-    allow_origin_regex=r"https://[a-zA-Z0-9-]+\.emoguchi\.pages\.dev|https://emoguchi\.pages\.dev|http://localhost:3000|http://localhost:3001|https://emoguchi\.vercel\.app|https://.*\.pages\.dev",
+    allow_origin_regex=origins,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
