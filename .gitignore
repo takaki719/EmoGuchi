@@ -12,3 +12,6 @@ backend/models/__pycache__/
 backend/services/__pycache__/
 backend/sockets/__pycache__/
 backend/emoguchi.db
+.ssh-cert.pub
+.ssh
+backend/alembic.ini

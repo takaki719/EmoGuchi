@@ -15,11 +15,16 @@ from models.database import Base
 # access to the values within the .ini file in use.
 config = context.config
 
-# Set the database URL from settings (use synchronous SQLite for migrations)
+# Set the database URL from settings (dynamic configuration)
 if settings.DATABASE_TYPE == "sqlite":
+    # Use synchronous SQLite URL for migrations
     config.set_main_option("sqlalchemy.url", f"sqlite:///{settings.SQLITE_DB_PATH}")
-else:
+elif settings.DATABASE_TYPE == "postgresql":
+    # Use synchronous PostgreSQL URL for migrations
     config.set_main_option("sqlalchemy.url", f"postgresql://{settings.POSTGRES_USER}:{settings.POSTGRES_PASSWORD}@{settings.POSTGRES_HOST}:{settings.POSTGRES_PORT}/{settings.POSTGRES_DB}")
+else:
+    # For memory type, use SQLite as fallback
+    config.set_main_option("sqlalchemy.url", f"sqlite:///{settings.SQLITE_DB_PATH}")
 
 # Interpret the config file for Python logging.
 # This line sets up loggers basically.
@@ -54,6 +59,9 @@ def run_migrations_offline() -> None:
         target_metadata=target_metadata,
         literal_binds=True,
         dialect_opts={"paramstyle": "named"},
+        # PostgreSQL specific options
+        compare_type=True,
+        compare_server_default=True,
     )
 
     with context.begin_transaction():
