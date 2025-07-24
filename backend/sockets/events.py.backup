@@ -272,7 +272,8 @@ class GameSocketEvents:
                 room.current_round = round_data
                 room.phase = GamePhase.IN_ROUND
                 state_store = get_state_store()
-                await state_store.update_room(room)
+                state_store = get_state_store()
+            await state_store.update_room(room)
                 
                 # Send updated room state to all players to sync phase first
                 player_names = [p.name for p in room.players.values()]
@@ -407,7 +408,8 @@ class GameSocketEvents:
                 # Remove player from room
                 del room.players[player_id]
                 state_store = get_state_store()
-                await state_store.update_room(room)
+                state_store = get_state_store()
+            await state_store.update_room(room)
                 
                 # Leave socket room - 安全性チェックを追加
                 try:
@@ -503,7 +505,8 @@ class GameSocketEvents:
                     player.score = 0
                 
                 state_store = get_state_store()
-                await state_store.update_room(room)
+                state_store = get_state_store()
+            await state_store.update_room(room)
                 
                 # Send updated room state to all players
                 player_names = [p.name for p in room.players.values()]
@@ -570,7 +573,7 @@ class GameSocketEvents:
                 room.current_round.votes[player_id] = emotion_id
                 state_store = get_state_store()
                 state_store = get_state_store()
-                await state_store.update_room(room)
+            await state_store.update_room(room)
                 
                 # Check if all listeners have voted
                 # Only count connected players (excluding speaker)
@@ -683,7 +686,8 @@ class GameSocketEvents:
                 # Update round with audio recording ID
                 room.current_round.audio_recording_id = recording.id
                 state_store = get_state_store()
-                await state_store.update_room(room)
+                state_store = get_state_store()
+            await state_store.update_room(room)
                 
                 # Apply voice processing if hard mode is enabled
                 processed_audio = audio_data  # Default to original audio
@@ -760,7 +764,8 @@ class GameSocketEvents:
                     player = room.players[player_id]
                     player.is_connected = False
                     state_store = get_state_store()
-                    await state_store.update_room(room)
+                    state_store = get_state_store()
+            await state_store.update_room(room)
                     
                     await self.sio.emit('player_disconnected', {
                         'playerName': player.name,

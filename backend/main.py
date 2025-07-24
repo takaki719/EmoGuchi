@@ -7,7 +7,7 @@ import os
 from contextlib import asynccontextmanager
 from config import settings
 from api import rooms, debug
-from sockets.events import GameSocketEvents
+from sockets.events_minimal import GameSocketEvents
 from services.database_service import DatabaseService
 from services.database_state_store import DatabaseStateStore
 from services.state_store import MemoryStateStore, state_store

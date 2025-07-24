@@ -1,2 +1,2 @@
-# Import state_store instance for shared access
-from .state_store import state_store
+# state_store will be set dynamically by main.py
+state_store = None

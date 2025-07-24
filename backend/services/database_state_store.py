@@ -15,6 +15,7 @@ from models.database import (
 )
 from services.state_store import StateStore
 from services.database_service import DatabaseService
+from config import settings
 
 
 class DatabaseStateStore(StateStore):
@@ -43,9 +44,9 @@ class DatabaseStateStore(StateStore):
             # Create chat session
             chat_session = ChatSession(
                 id=room.id,
-                room_code=room.room_code,
+                room_code=room.id,  # Use room.id as room_code
                 mode_id=mode.id,
-                max_players=room.config.max_players,
+                max_players=settings.MAX_PLAYERS_PER_ROOM,
                 status="waiting"
             )
             session.add(chat_session)
@@ -56,7 +57,7 @@ class DatabaseStateStore(StateStore):
                     chat_session_id=room.id,
                     session_id=player.id,
                     player_name=player.name,
-                    is_host=(player.id == room.host_id)
+                    is_host=player.is_host
                 )
                 session.add(participant)
             
@@ -83,24 +84,19 @@ class DatabaseStateStore(StateStore):
             # Reconstruct Room object
             config = RoomConfig(
                 mode=chat_session.mode.name,
-                max_players=chat_session.max_players,
-                vote_timeout=30,  # Default, not stored in DB
-                emotions=[]  # Will be loaded from emotion_types
+                vote_timeout=30  # Default, not stored in DB
             )
             
             # Load players
             players = {}
-            host_id = None
             for participant in chat_session.participants:
                 player = Player(
                     id=participant.session_id,
                     name=participant.player_name,
-                    is_ready=True,  # Default, not stored
+                    is_host=participant.is_host,
                     score=0  # Will be calculated from scores table
                 )
                 players[player.id] = player
-                if participant.is_host:
-                    host_id = player.id
             
             # Load rounds
             rounds = []
@@ -139,8 +135,8 @@ class DatabaseStateStore(StateStore):
             if not chat_session:
                 raise ValueError(f"Room {room.id} not found")
             
-            chat_session.status = room.state
-            if room.state == "finished":
+            chat_session.status = room.phase
+            if room.phase == "finished":
                 chat_session.finished_at = datetime.now(timezone.utc)
             
             # Update participants
@@ -156,7 +152,7 @@ class DatabaseStateStore(StateStore):
                         chat_session_id=room.id,
                         session_id=player.id,
                         player_name=player.name,
-                        is_host=(player.id == room.host_id)
+                        is_host=player.is_host
                     )
                     session.add(participant)
                 else:
