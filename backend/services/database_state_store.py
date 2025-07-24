@@ -135,8 +135,15 @@ class DatabaseStateStore(StateStore):
             if not chat_session:
                 raise ValueError(f"Room {room.id} not found")
             
-            chat_session.status = room.phase
-            if room.phase == "finished":
+            # Map GamePhase to ChatSession status
+            phase_mapping = {
+                "waiting": "waiting",
+                "in_round": "playing", 
+                "result": "playing",
+                "closed": "finished"
+            }
+            chat_session.status = phase_mapping.get(room.phase, "waiting")
+            if room.phase == "closed":
                 chat_session.finished_at = datetime.now(timezone.utc)
             
             # Update participants
