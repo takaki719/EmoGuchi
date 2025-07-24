@@ -4,6 +4,7 @@ SQLAlchemy async操作とコネクション管理
 """
 
 import logging
+from contextlib import asynccontextmanager
 from typing import AsyncGenerator, Optional, List, Dict, Any
 from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine, async_sessionmaker
 from sqlalchemy.orm import selectinload
@@ -60,6 +61,7 @@ class DatabaseService:
             logger.error(f"❌ データベース初期化エラー: {e}")
             raise
     
+    @asynccontextmanager
     async def get_session(self) -> AsyncGenerator[AsyncSession, None]:
         """データベースセッション取得"""
         if not self._initialized:
