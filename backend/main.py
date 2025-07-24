@@ -4,6 +4,7 @@ from fastapi.staticfiles import StaticFiles
 import socketio
 import logging
 import os
+import asyncio
 from contextlib import asynccontextmanager
 from config import settings
 from api import rooms, debug
@@ -99,7 +100,8 @@ async def lifespan(app: FastAPI):
     """Manage application lifespan"""
     # Startup
     await init_database()
-    await init_ml_models()
+    # ML model initialization runs in background, don't wait for it
+    asyncio.create_task(init_ml_models())
     yield
     # Shutdown (if needed)
 
@@ -127,12 +129,9 @@ def is_allowed_origin(origin: str) -> bool:
             if re.match(f"^{pattern}$", origin):
                 return True
     return False
-origins = [
-    "https://ce742f31.emoguchi.pages.dev",  # Cloudflare Pages のURL
-]
 app.add_middleware(
     CORSMiddleware,
-    allow_origin_regex=origins,
+    allow_origin_regex=r"https://[a-fA-F0-9]+\.emoguchi\.pages\.dev|https://emoguchi\.pages\.dev|http://localhost:3000|http://localhost:3001|https://emoguchi\.vercel\.app|https://.*\.vercel\.app",
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -178,32 +177,8 @@ async def root():
 
 @app.get("/health")
 async def health_check():
-    """Enhanced health check including ML model status"""
-    health_status = {
-        "status": "healthy",
-        "timestamp": "2025-01-01T00:00:00Z",  # Will be set dynamically
-        "services": {
-            "api": "healthy",
-            "ml_models": "initializing"
-        }
-    }
-    
-    # Import datetime here to avoid circular imports
-    from datetime import datetime, timezone
-    health_status["timestamp"] = datetime.now(timezone.utc).isoformat()
-    
-    # Check ML model status
-    if model_initialization_status["initialized"]:
-        health_status["services"]["ml_models"] = "healthy"
-    elif model_initialization_status["error"]:
-        health_status["services"]["ml_models"] = "error"
-        health_status["status"] = "degraded"  # Still healthy for basic API, but ML is down
-        health_status["error"] = model_initialization_status["error"]
-    else:
-        health_status["services"]["ml_models"] = "initializing"
-        # Keep overall status as healthy since initialization is in progress
-    
-    return health_status
+    """Simple health check for Fly.io"""
+    return {"status": "healthy", "message": "EMOGUCHI API is running"}
 
 @app.get("/socket.io/")
 async def socket_info():
