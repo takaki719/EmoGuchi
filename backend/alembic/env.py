@@ -40,6 +40,15 @@ target_metadata = Base.metadata
 # my_important_option = config.get_main_option("my_important_option")
 # ... etc.
 
+def include_object(object, name, type_, reflected, compare_to):
+    """
+    Should this object be included in autogenerate?
+    """
+    # Skip certain objects that we don't want to track
+    if type_ == "table" and name in ["alembic_version"]:
+        return False
+    return True
+
 
 def run_migrations_offline() -> None:
     """Run migrations in 'offline' mode.
@@ -83,7 +92,13 @@ def run_migrations_online() -> None:
 
     with connectable.connect() as connection:
         context.configure(
-            connection=connection, target_metadata=target_metadata
+            connection=connection,
+            target_metadata=target_metadata,
+            # PostgreSQL specific options
+            compare_type=True,
+            compare_server_default=True,
+            # Include object name in diffs for better tracking
+            include_object=include_object,
         )
 
         with context.begin_transaction():

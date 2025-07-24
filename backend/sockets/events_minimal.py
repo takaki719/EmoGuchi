@@ -136,10 +136,10 @@ class GameSocketEvents:
                 }, room=room_id)
                 
             except Exception as e:
-                logger.error(f"Error in join_room: {e}")
+                logger.error(f"Error in join_room: {e}", exc_info=True)
                 await events_instance.sio.emit('error', {
                     'code': 'EMO-500',
-                    'message': 'Internal server error'
+                    'message': f'Internal server error: {str(e)}'
                 }, room=sid)
     
     async def _handle_player_disconnect(self, sid):
