@@ -113,25 +113,18 @@ app = FastAPI(
     lifespan=lifespan
 )
 
-# Add CORS middleware with dynamic origin validation
-def is_allowed_origin(origin: str) -> bool:
-    """Check if origin is allowed, supporting wildcards"""
-    if not origin:
-        return False
-    
-    for allowed in settings.ALLOWED_ORIGINS:
-        if allowed == origin:
-            return True
-        # Handle wildcard patterns
-        if "*" in allowed:
-            pattern = allowed.replace("*", ".*")
-            import re
-            if re.match(f"^{pattern}$", origin):
-                return True
-    return False
+# CORS middleware configuration
 app.add_middleware(
     CORSMiddleware,
-    allow_origin_regex=r"https://[a-fA-F0-9]+\.emoguchi\.pages\.dev|https://emoguchi\.pages\.dev|http://localhost:3000|http://localhost:3001|https://emoguchi\.vercel\.app|https://.*\.vercel\.app",
+    allow_origins=[
+        "https://ce742f31.emoguchi.pages.dev",
+        "https://emoguchi.pages.dev",
+        "https://emoguchi.vercel.app",
+        "http://localhost:3000",
+        "http://localhost:3001",
+        # Additional Cloudflare Pages domains
+        "https://503fc1a1.emoguchi.pages.dev"
+    ],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -179,6 +172,12 @@ async def root():
 async def health_check():
     """Simple health check for Fly.io"""
     return {"status": "healthy", "message": "EMOGUCHI API is running"}
+
+# Debug OPTIONS handler for CORS testing
+@app.options("/{path:path}")
+async def options_handler(path: str):
+    """Handle preflight OPTIONS requests"""
+    return {}
 
 @app.get("/socket.io/")
 async def socket_info():
