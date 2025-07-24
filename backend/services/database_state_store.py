@@ -157,7 +157,7 @@ class DatabaseStateStore(StateStore):
                     session.add(participant)
                 else:
                     # Update existing participant
-                    existing_map[player_id].is_host = (player.id == room.host_id)
+                    existing_map[player_id].is_host = player.is_host
             
             # Remove players no longer in room
             for session_id, participant in existing_map.items():
