@@ -162,7 +162,7 @@ class DatabaseStateStore(StateStore):
                 )
                 votes = {}
                 for vote in vote_results.scalars():
-                    votes[vote.session_id] = vote.emotion_id
+                    votes[vote.voter_session_id] = vote.selected_emotion_id
                 
                 round_data = RoundData(
                     id=db_round.id,  # Use database ID
@@ -332,8 +332,9 @@ class DatabaseStateStore(StateStore):
                     for player_id, emotion_id in round_data.votes.items():
                         vote = EmotionVote(
                             round_id=round_data.id,
-                            session_id=player_id,
-                            emotion_id=emotion_id
+                            voter_session_id=player_id,
+                            selected_emotion_id=emotion_id,
+                            is_correct=(emotion_id == round_data.emotion_id)
                         )
                         session.add(vote)
                     
