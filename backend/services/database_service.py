@@ -51,6 +51,7 @@ class DatabaseService:
                         "command_timeout": 60,
                         "server_settings": {
                             "jit": "off",  # JITを無効化（小さなクエリでのオーバーヘッド回避）
+                            "timezone": "UTC",  # タイムゾーンをUTCに設定
                         }
                     }
                 })

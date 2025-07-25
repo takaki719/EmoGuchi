@@ -148,6 +148,12 @@ class DatabaseStateStore(StateStore):
                     except json.JSONDecodeError:
                         logger.warning(f"Failed to parse eligible_voters for round {db_round.id}")
                 
+                # Ensure voting_started_at has timezone info
+                voting_started_at = db_round.voting_started_at
+                if voting_started_at and voting_started_at.tzinfo is None:
+                    # If offset-naive, assume it's UTC
+                    voting_started_at = voting_started_at.replace(tzinfo=timezone.utc)
+                
                 round_data = RoundData(
                     id=db_round.id,  # Use database ID
                     phrase=db_round.prompt_text,
@@ -157,7 +163,7 @@ class DatabaseStateStore(StateStore):
                     audio_recording_id=None,  # Will be loaded from recordings
                     is_completed=False,  # Assume all database rounds are completed for now
                     eligible_voters=eligible_voters,
-                    voting_started_at=db_round.voting_started_at,
+                    voting_started_at=voting_started_at,
                     vote_timeout_seconds=db_round.vote_timeout_seconds or 30
                 )
                 logger.info(f"⏰ Loaded round {db_round.id} with voting_started_at: {db_round.voting_started_at}")

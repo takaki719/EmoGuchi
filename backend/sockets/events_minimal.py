@@ -456,16 +456,19 @@ class GameSocketEvents:
                 
                 # Broadcast audio to all other players in the room
                 # Speaker gets original audio, listeners get processed audio (if hard mode)
+                # Generate UTC timestamp for consistency
+                utc_now = datetime.now(timezone.utc)
+                
                 await events_instance.sio.emit('audio_received', {
                     'audio': processed_audio,
                     'speaker_name': room.players[player_id].name,
                     'is_processed': room.config.hard_mode and processed_audio != audio_data,
                     'vote_timeout_seconds': room.config.vote_timeout,  # タイマー情報を追加
-                    'voting_started_at': datetime.now(timezone.utc).isoformat()  # 開始時刻も送信
+                    'voting_started_at': utc_now.isoformat()  # 開始時刻も送信
                 }, room=room_id, skip_sid=sid)
                 
                 # Start voting timer after audio is broadcast
-                room.current_round.voting_started_at = datetime.now(timezone.utc)
+                room.current_round.voting_started_at = utc_now
                 room.current_round.vote_timeout_seconds = room.config.vote_timeout
                 
                 state_store = get_state_store()
@@ -479,7 +482,7 @@ class GameSocketEvents:
                 logger.info(f"Audio received and broadcast from speaker {player_id} in room {room_id}, data size: {len(audio_bytes)}")
                 logger.info(f"⏰ Vote timer started: {room.config.vote_timeout}s timeout")
                 logger.info(f"⏰ voting_started_at set to: {room.current_round.voting_started_at}")
-                logger.info(f"⏰ Current UTC time: {datetime.now(timezone.utc)}")
+                logger.info(f"⏰ Current UTC time: {utc_now}")
                 
             except Exception as e:
                 logger.error(f"Error in audio_send: {e}", exc_info=True)
@@ -574,13 +577,42 @@ class GameSocketEvents:
                 logger.info(f"🗳️ Vote player IDs: {list(room.current_round.votes.keys())}")
                 logger.info(f"🗳️ All player IDs: {[p.id for p in room.players.values()]}")
                 
+                # Detailed breakdown for debugging
+                for voter_id in room.current_round.eligible_voters:
+                    has_voted = voter_id in room.current_round.votes
+                    is_connected = voter_id in room.players and room.players[voter_id].is_connected
+                    logger.info(f"🗳️ Voter {voter_id}: voted={has_voted}, connected={is_connected}")
+                    if voter_id in room.players:
+                        logger.info(f"🗳️   Player name: {room.players[voter_id].name}")
+                    else:
+                        logger.info(f"🗳️   Player not found in current players")
+                
                 # Complete round when all eligible voters have either voted or disconnected
-                if eligible_who_voted_or_disconnected >= total_eligible and total_eligible > 0:
+                should_complete = eligible_who_voted_or_disconnected >= total_eligible and total_eligible > 0
+                logger.info(f"🗳️ Round completion check: eligible_who_voted_or_disconnected={eligible_who_voted_or_disconnected}, total_eligible={total_eligible}, should_complete={should_complete}")
+                
+                if should_complete:
                     logger.info(f"🎉 All eligible voters accounted for, completing round in room {room_id}")
                     await events_instance._complete_round(room)
                 else:
                     remaining = total_eligible - eligible_who_voted_or_disconnected
                     logger.info(f"⏳ Waiting for {remaining} more eligible voters in room {room_id}")
+                    
+                    # Emergency completion check - if all current connected players have voted
+                    current_connected_voters = [
+                        p_id for p_id in room.current_round.eligible_voters 
+                        if p_id in room.players and room.players[p_id].is_connected
+                    ]
+                    voted_connected = [
+                        p_id for p_id in current_connected_voters 
+                        if p_id in room.current_round.votes
+                    ]
+                    
+                    logger.info(f"🚨 Emergency check: current_connected_voters={len(current_connected_voters)}, voted_connected={len(voted_connected)}")
+                    
+                    if len(current_connected_voters) > 0 and len(voted_connected) >= len(current_connected_voters):
+                        logger.warning(f"🚨 Emergency completion: All currently connected eligible voters have voted")
+                        await events_instance._complete_round(room)
                 
                 logger.info(f"Vote submitted by player {player_id} in room {room_id}")
                 
@@ -939,7 +971,13 @@ class GameSocketEvents:
                 
             # Check actual timeout based on voting_started_at
             if room.current_round.voting_started_at:
-                elapsed = datetime.now(timezone.utc) - room.current_round.voting_started_at
+                # Ensure voting_started_at has timezone info
+                voting_start_time = room.current_round.voting_started_at
+                if voting_start_time.tzinfo is None:
+                    # If offset-naive, assume it's UTC
+                    voting_start_time = voting_start_time.replace(tzinfo=timezone.utc)
+                
+                elapsed = datetime.now(timezone.utc) - voting_start_time
                 timeout_seconds = room.current_round.vote_timeout_seconds
                 
                 if elapsed.total_seconds() >= timeout_seconds:

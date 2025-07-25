@@ -3,6 +3,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { getApiUrl } from '@/utils/api';
+import { getOrCreatePlayerId } from '@/utils/playerStorage';
 
 // Edge Runtime 対応
 export const runtime = 'edge';
@@ -53,14 +54,9 @@ export default function SoloPage() {
 
   // 端末固定IDとハイスコアをlocalStorageから読み込み
   useEffect(() => {
-    // 端末固定ID取得・生成
-    let savedDeviceId = localStorage.getItem('emoguchi-device-id');
-    if (!savedDeviceId) {
-      // 新しいデバイスIDを生成（UUID v4形式）
-      savedDeviceId = 'device_' + crypto.randomUUID();
-      localStorage.setItem('emoguchi-device-id', savedDeviceId);
-    }
-    setDeviceId(savedDeviceId);
+    // マルチプレイと同じplayerIDを使用して統一性を保つ
+    const playerId = getOrCreatePlayerId();
+    setDeviceId(playerId);
     
     // ハイスコア読み込み
     const savedHighScore = localStorage.getItem('emoguchi-solo-highscore');
