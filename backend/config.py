@@ -53,7 +53,7 @@ class Settings:
     KUSHINADA_LOCAL_PATH: str = os.getenv("KUSHINADA_LOCAL_PATH", "./models/kushinada-hubert-large")
     
     # Database settings
-    DATABASE_TYPE: str = os.getenv("DATABASE_TYPE", "sqlite")  # "sqlite" or "postgresql"
+    DATABASE_TYPE: str = os.getenv("DATABASE_TYPE", "postgresql")  # "sqlite" or "postgresql"
     
     # SQLite settings (development)
     SQLITE_DB_PATH: str = os.getenv("SQLITE_DB_PATH", "./emoguchi.db")
@@ -68,6 +68,17 @@ class Settings:
     @property
     def DATABASE_URL(self) -> str:
         """データベースURL生成（環境に応じて自動切り替え）"""
+        # 環境変数DATABASE_URLが設定されている場合はそれを優先
+        env_database_url = os.getenv("DATABASE_URL")
+        if env_database_url:
+            # NeonなどのクラウドプロバイダのURLがpostgres://で始まる場合はpostgresql+asyncpg://に変換
+            if env_database_url.startswith("postgres://"):
+                return env_database_url.replace("postgres://", "postgresql+asyncpg://", 1)
+            elif env_database_url.startswith("postgresql://"):
+                return env_database_url.replace("postgresql://", "postgresql+asyncpg://", 1)
+            return env_database_url
+        
+        # 環境変数DATABASE_URLが設定されていない場合は従来の方法
         if self.DATABASE_TYPE == "sqlite":
             return f"sqlite+aiosqlite:///{self.SQLITE_DB_PATH}"
         else:
