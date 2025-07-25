@@ -88,6 +88,7 @@ class Round(Base):
     prompt_text = Column(Text, nullable=False)  # GPT生成セリフ
     emotion_id = Column(String(50), ForeignKey("emotion_types.id"), nullable=False)  # 正解感情
     round_number = Column(Integer, nullable=False)
+    eligible_voters = Column(Text, nullable=True)  # JSON string of eligible voter IDs
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     
     # Relations

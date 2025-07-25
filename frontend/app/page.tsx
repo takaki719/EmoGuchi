@@ -1,11 +1,12 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { useLocaleStore } from '@/stores/localeStore';
 import { translations } from '@/lib/translations';
 import LanguageSwitcher from '@/components/LanguageSwitcher';
 import { getApiUrl } from '@/utils/api';
+import { getSavedPlayerName } from '@/utils/playerStorage';
 
 // Edge Runtime 対応
 export const runtime = 'edge';
@@ -19,6 +20,14 @@ export default function Home() {
   const router = useRouter();
   const { locale } = useLocaleStore();
   const t = translations[locale];
+
+  // 保存された名前を自動入力
+  useEffect(() => {
+    const savedName = getSavedPlayerName();
+    if (savedName) {
+      setPlayerName(savedName);
+    }
+  }, []);
 
   const validateInputs = () => {
     let isValid = true;

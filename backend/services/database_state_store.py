@@ -137,6 +137,15 @@ class DatabaseStateStore(StateStore):
             rounds = []
             current_round = None
             for db_round in sorted(chat_session.rounds, key=lambda r: r.round_number):
+                # Parse eligible_voters from JSON string
+                import json
+                eligible_voters = []
+                if db_round.eligible_voters:
+                    try:
+                        eligible_voters = json.loads(db_round.eligible_voters)
+                    except json.JSONDecodeError:
+                        logger.warning(f"Failed to parse eligible_voters for round {db_round.id}")
+                
                 round_data = RoundData(
                     id=db_round.id,  # Use database ID
                     phrase=db_round.prompt_text,
@@ -144,7 +153,8 @@ class DatabaseStateStore(StateStore):
                     speaker_id=db_round.speaker_session_id,
                     votes={},  # Will be loaded from emotion_votes
                     audio_recording_id=None,  # Will be loaded from recordings
-                    is_completed=False  # Assume all database rounds are completed for now
+                    is_completed=False,  # Assume all database rounds are completed for now
+                    eligible_voters=eligible_voters
                 )
                 rounds.append(round_data)
             
@@ -253,13 +263,18 @@ class DatabaseStateStore(StateStore):
                         session.add(emotion)
                         await session.flush()
                     
+                    # Serialize eligible_voters to JSON string
+                    import json
+                    eligible_voters_json = json.dumps(round_data.eligible_voters) if round_data.eligible_voters else None
+                    
                     db_round = Round(
                         id=round_data.id,  # Use the same ID
                         chat_session_id=chat_session.id,  # Use correct ChatSession.id
                         speaker_session_id=round_data.speaker_id,
                         prompt_text=round_data.phrase,
                         emotion_id=round_data.emotion_id,
-                        round_number=i + 1  # Calculate based on order
+                        round_number=i + 1,  # Calculate based on order
+                        eligible_voters=eligible_voters_json
                     )
                     session.add(db_round)
             

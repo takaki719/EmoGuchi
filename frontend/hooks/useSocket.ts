@@ -2,6 +2,7 @@ import { useEffect, useCallback } from 'react';
 import { socketClient } from '@/socket/client';
 import { useGameStore } from '@/stores/gameStore';
 import { RoomState, Round, RoundResult } from '@/types/game';
+import { getOrCreatePlayerId, savePlayerName } from '@/utils/playerStorage';
 
 export const useSocket = () => {
   console.log('🚀 useSocket: Function called');
@@ -242,7 +243,15 @@ export const useSocket = () => {
   const joinRoom = useCallback((roomId: string, playerName: string) => {
     const socket = socketClient.getSocket();
     if (socket) {
-      socket.emit('join_room', { roomId, playerName });
+      // Player IDを永続化
+      const playerId = getOrCreatePlayerId();
+      savePlayerName(playerName);
+      
+      socket.emit('join_room', { 
+        roomId, 
+        playerName,
+        playerId  // 永続化されたPlayer IDを送信
+      });
     }
   }, []);
 

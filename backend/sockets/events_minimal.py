@@ -49,6 +49,7 @@ class GameSocketEvents:
                 logger.info(f"join_room event received from {sid} with data: {data}")
                 room_id = data.get('roomId')
                 player_name = data.get('playerName')
+                player_id = data.get('playerId')  # 永続化されたPlayer ID
                 
                 if not room_id or not player_name:
                     logger.error(f"Missing data - roomId: {room_id}, playerName: {player_name}")
@@ -70,20 +71,37 @@ class GameSocketEvents:
                     }, room=sid)
                     return
                 
-                # Check if player with same name already exists
+                # Check if player already exists (by ID or name for backward compatibility)
                 existing_player = None
-                for p in room.players.values():
-                    if p.name == player_name:
-                        existing_player = p
-                        break
+                
+                # First, try to find by player_id if provided
+                if player_id:
+                    existing_player = room.players.get(player_id)
+                    if existing_player:
+                        logger.info(f"Found existing player by ID: {player_id}")
+                        # Update name if changed
+                        existing_player.name = player_name
+                
+                # Fallback: check by name for backward compatibility
+                if not existing_player:
+                    for p in room.players.values():
+                        if p.name == player_name:
+                            existing_player = p
+                            logger.info(f"Found existing player by name: {player_name}")
+                            break
                 
                 if existing_player:
                     # Reconnect existing player
                     player = existing_player
                     player.is_connected = True
+                    logger.info(f"Player {player.name} ({player.id}) reconnected to room {room_id}")
                 else:
-                    # Create new player
-                    player = Player(name=player_name)
+                    # Create new player with provided ID or generate new one
+                    if player_id:
+                        player = Player(id=player_id, name=player_name)
+                    else:
+                        player = Player(name=player_name)  # Auto-generate ID
+                    
                     if not room.players:  # First player becomes host
                         player.is_host = True
                     room.players[player.id] = player
@@ -211,12 +229,21 @@ class GameSocketEvents:
                     }, room=sid)
                     return
                 
-                # Create round
+                # Create round with eligible voters snapshot
+                # Only connected players at round start (excluding speaker) can vote
+                eligible_voters = [
+                    player_id for player_id, player in room.players.items()
+                    if player.is_connected and player_id != speaker.id
+                ]
+                
                 round_data = Round(
                     phrase=phrase,
                     emotion_id=emotion_id,
-                    speaker_id=speaker.id
+                    speaker_id=speaker.id,
+                    eligible_voters=eligible_voters
                 )
+                
+                logger.info(f"🎯 Round created with {len(eligible_voters)} eligible voters: {eligible_voters}")
                 
                 room.current_round = round_data
                 room.phase = GamePhase.IN_ROUND
@@ -488,32 +515,39 @@ class GameSocketEvents:
                     }, room=sid)
                     return
                 
+                # Only allow eligible voters (those present at round start) to vote
+                if player_id not in room.current_round.eligible_voters:
+                    await events_instance.sio.emit('error', {
+                        'code': 'EMO-403', 
+                        'message': 'You joined after the round started and cannot vote'
+                    }, room=sid)
+                    return
+                
                 # Record vote
                 room.current_round.votes[player_id] = emotion_id
                 state_store = get_state_store()
                 await state_store.update_room(room)
                 
-                # Check if all listeners have voted
-                # Only count players who were present when the round started AND are still connected
-                # This excludes: players who joined mid-game, players who left during the round
+                # Check if all eligible voters have voted
+                # Use the snapshot of eligible voters from round start (ラウンド固定制)
                 
-                # Get players who can vote: present at round start, still connected, not the speaker
-                eligible_voters = []
-                for player_id, player in room.players.items():
-                    if (player_id != room.current_round.speaker_id and  # Not the speaker
-                        player.is_connected):  # Still connected
-                        eligible_voters.append(player_id)
+                # Filter eligible voters to only those still connected
+                still_connected_eligible = [
+                    voter_id for voter_id in room.current_round.eligible_voters
+                    if voter_id in room.players and room.players[voter_id].is_connected
+                ]
                 
-                listener_count = len(eligible_voters)
+                listener_count = len(still_connected_eligible)
                 votes_received = len(room.current_round.votes)
                 
                 logger.info(f"🗳️ Vote check: {votes_received}/{listener_count} votes received in room {room_id}")
-                logger.info(f"🗳️ Eligible voters: {eligible_voters}")
+                logger.info(f"🗳️ Original eligible voters: {room.current_round.eligible_voters}")
+                logger.info(f"🗳️ Still connected eligible: {still_connected_eligible}")
                 speaker = room.players.get(room.current_round.speaker_id)
                 logger.info(f"🗳️ Speaker ID: {room.current_round.speaker_id}, Speaker name: {speaker.name if speaker else 'Not found'}")
                 logger.info(f"🗳️ Votes: {room.current_round.votes}")
                 logger.info(f"🗳️ Vote player IDs: {list(room.current_round.votes.keys())}")
-                logger.info(f"🗳️ Connected player IDs: {[p.id for p in connected_players]}")
+                logger.info(f"🗳️ All player IDs: {[p.id for p in room.players.values()]}")
                 
                 if votes_received >= listener_count and listener_count > 0:
                     logger.info(f"🎉 All votes received, completing round in room {room_id}")
