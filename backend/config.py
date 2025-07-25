@@ -73,10 +73,49 @@ class Settings:
         if env_database_url:
             # NeonなどのクラウドプロバイダのURLがpostgres://で始まる場合はpostgresql+asyncpg://に変換
             if env_database_url.startswith("postgres://"):
-                return env_database_url.replace("postgres://", "postgresql+asyncpg://", 1)
+                url = env_database_url.replace("postgres://", "postgresql+asyncpg://", 1)
             elif env_database_url.startswith("postgresql://"):
-                return env_database_url.replace("postgresql://", "postgresql+asyncpg://", 1)
-            return env_database_url
+                url = env_database_url.replace("postgresql://", "postgresql+asyncpg://", 1)
+            else:
+                url = env_database_url
+            
+            # asyncpg用にSSLパラメータを変換
+            import re
+            from urllib.parse import urlparse, parse_qs, urlencode, urlunparse
+            
+            try:
+                parsed = urlparse(url)
+                query_params = parse_qs(parsed.query)
+                
+                # sslmodeパラメータの変換
+                if 'sslmode' in query_params:
+                    sslmode = query_params['sslmode'][0]
+                    # sslmodeを削除
+                    del query_params['sslmode']
+                    
+                    # asyncpg用のssl設定に変換
+                    if sslmode in ['require', 'prefer']:
+                        query_params['ssl'] = ['true']
+                    elif sslmode == 'disable':
+                        query_params['ssl'] = ['false']
+                
+                # 他の互換性のないパラメータも削除
+                params_to_remove = ['sslcert', 'sslkey', 'sslrootcert', 'sslcrl']
+                for param in params_to_remove:
+                    if param in query_params:
+                        del query_params[param]
+                
+                # URLを再構築
+                new_query = urlencode(query_params, doseq=True)
+                url = urlunparse((parsed.scheme, parsed.netloc, parsed.path, parsed.params, new_query, parsed.fragment))
+                
+            except Exception as e:
+                # URLパースに失敗した場合は基本的な置換のみ実行
+                url = re.sub(r'[&?]sslmode=[^&]*', '', url)
+                if 'sslmode=require' in env_database_url:
+                    url += ('&' if '?' in url else '?') + 'ssl=true'
+            
+            return url
         
         # 環境変数DATABASE_URLが設定されていない場合は従来の方法
         if self.DATABASE_TYPE == "sqlite":
