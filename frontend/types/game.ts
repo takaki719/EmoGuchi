@@ -87,7 +87,7 @@ export interface EmotionChoice {
 // Socket events
 export interface SocketEvents {
   // Client to Server
-  join_room: (data: { roomId: string; playerName: string }) => void;
+  join_room: (data: { roomId: string; playerName: string; playerId: string }) => void;
   start_round: (data: {}) => void;
   submit_vote: (data: { roundId: string; emotionId: string }) => void;
   leave_room: (data: {}) => void;
