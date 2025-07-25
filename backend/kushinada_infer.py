@@ -38,6 +38,38 @@ def download_model_from_r2():
             
         logger.info(f"📦 ダウンロード中: {settings.KUSHINADA_MODEL_R2_KEY}")
         
+        # デバッグ: R2バケットの内容を一覧表示
+        try:
+            import boto3
+            from botocore.exceptions import ClientError
+            
+            s3_client = boto3.client(
+                's3',
+                endpoint_url=settings.R2_ENDPOINT_URL,
+                aws_access_key_id=settings.AWS_ACCESS_KEY_ID,
+                aws_secret_access_key=settings.AWS_SECRET_ACCESS_KEY
+            )
+            
+            logger.info("🔍 R2バケットの内容を確認中...")
+            response = s3_client.list_objects_v2(Bucket=settings.S3_BUCKET, Prefix='models/')
+            
+            if 'Contents' in response:
+                logger.info(f"📁 models/フォルダ内のファイル:")
+                for obj in response['Contents']:
+                    logger.info(f"  - {obj['Key']} (サイズ: {obj['Size']} bytes)")
+            else:
+                logger.warning("⚠️ models/フォルダにファイルが見つかりません")
+                
+            # すべてのファイルも確認
+            response_all = s3_client.list_objects_v2(Bucket=settings.S3_BUCKET, MaxKeys=10)
+            if 'Contents' in response_all:
+                logger.info(f"📁 バケット内のファイル例 (最初の10件):")
+                for obj in response_all['Contents']:
+                    logger.info(f"  - {obj['Key']}")
+                    
+        except Exception as list_error:
+            logger.error(f"🔍 バケット内容確認エラー: {list_error}")
+        
         # R2からダウンロード
         storage.download_file(settings.KUSHINADA_MODEL_R2_KEY, tmp_path)
         
