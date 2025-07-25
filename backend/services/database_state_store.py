@@ -79,16 +79,18 @@ class DatabaseStateStore(StateStore):
                 vote_timeout=room.config.vote_timeout
             )
             session.add(chat_session)
+            await session.flush()  # Get the chat_session.id
             
-            # Create room participants
-            for player in room.players.values():
-                participant = RoomParticipant(
-                    chat_session_id=room.id,
-                    session_id=player.id,
-                    player_name=player.name,
-                    is_host=player.is_host
-                )
-                session.add(participant)
+            # Create room participants with autoflush disabled
+            with session.no_autoflush:
+                for player in room.players.values():
+                    participant = RoomParticipant(
+                        chat_session_id=room.id,
+                        session_id=player.id,
+                        player_name=player.name,
+                        is_host=player.is_host
+                    )
+                    session.add(participant)
             
             await session.commit()
     
@@ -210,44 +212,46 @@ class DatabaseStateStore(StateStore):
             if room.phase == "closed":
                 chat_session.finished_at = datetime.now(timezone.utc)
             
-            # Update participants
-            existing_participants = await session.execute(
-                select(RoomParticipant).where(RoomParticipant.chat_session_id == chat_session.id)
-            )
-            existing_map = {p.session_id: p for p in existing_participants.scalars()}
+            # Update participants with autoflush disabled
+            with session.no_autoflush:
+                existing_participants = await session.execute(
+                    select(RoomParticipant).where(RoomParticipant.chat_session_id == chat_session.id)
+                )
+                existing_map = {p.session_id: p for p in existing_participants.scalars()}
+                
+                # Add new players
+                for player_id, player in room.players.items():
+                    if player_id not in existing_map:
+                        participant = RoomParticipant(
+                            chat_session_id=chat_session.id,  # Use correct ChatSession.id
+                            session_id=player.id,
+                            player_name=player.name,
+                            is_host=player.is_host
+                        )
+                        session.add(participant)
+                    else:
+                        # Update existing participant
+                        existing_map[player_id].is_host = player.is_host
+                
+                # Remove players no longer in room
+                for session_id, participant in existing_map.items():
+                    if session_id not in room.players:
+                        await session.delete(participant)
             
-            # Add new players
-            for player_id, player in room.players.items():
-                if player_id not in existing_map:
-                    participant = RoomParticipant(
-                        chat_session_id=chat_session.id,  # Use correct ChatSession.id
-                        session_id=player.id,
-                        player_name=player.name,
-                        is_host=player.is_host
-                    )
-                    session.add(participant)
-                else:
-                    # Update existing participant
-                    existing_map[player_id].is_host = player.is_host
-            
-            # Remove players no longer in room
-            for session_id, participant in existing_map.items():
-                if session_id not in room.players:
-                    await session.delete(participant)
-            
-            # Update rounds (both current_round and round_history)
-            # Get the actual ChatSession.id for this room_code
-            existing_rounds = await session.execute(
-                select(Round).where(Round.chat_session_id == chat_session.id)
-            )
-            existing_round_ids = {r.id for r in existing_rounds.scalars()}
-            
-            # Handle current active round (not yet in history)
-            rounds_to_save = list(room.round_history)
-            if room.current_round and not room.current_round.is_completed:
-                # Add current round to the list to be saved
-                rounds_to_save.append(room.current_round)
-            
+            # Update rounds (both current_round and round_history) with autoflush disabled
+            with session.no_autoflush:
+                # Get the actual ChatSession.id for this room_code
+                existing_rounds = await session.execute(
+                    select(Round).where(Round.chat_session_id == chat_session.id)
+                )
+                existing_round_ids = {r.id for r in existing_rounds.scalars()}
+                
+                # Handle current active round (not yet in history)
+                rounds_to_save = list(room.round_history)
+                if room.current_round and not room.current_round.is_completed:
+                    # Add current round to the list to be saved
+                    rounds_to_save.append(room.current_round)
+                
             for i, round_data in enumerate(rounds_to_save):
                 if round_data.id not in existing_round_ids:
                     # Create new round
@@ -459,15 +463,16 @@ class DatabaseStateStore(StateStore):
             
             logger.info(f"🔄 Created new session {new_session.id} for room_code {new_room.id}")
             
-            # 3. Create room participants for new session
-            for player in new_room.players.values():
-                participant = RoomParticipant(
-                    chat_session_id=new_session.id,  # New session ID
-                    session_id=player.id,
-                    player_name=player.name,
-                    is_host=player.is_host
-                )
-                session.add(participant)
+            # 3. Create room participants for new session with autoflush disabled
+            with session.no_autoflush:
+                for player in new_room.players.values():
+                    participant = RoomParticipant(
+                        chat_session_id=new_session.id,  # New session ID
+                        session_id=player.id,
+                        player_name=player.name,
+                        is_host=player.is_host
+                    )
+                    session.add(participant)
             
             await session.commit()
             logger.info(f"🔄 Successfully created new game session")

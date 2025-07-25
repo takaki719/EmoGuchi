@@ -34,11 +34,28 @@ class DatabaseService:
             logger.info(f"📊 データベース接続中: {settings.DATABASE_TYPE}")
             
             # エンジン作成
-            self.engine = create_async_engine(
-                database_url,
-                echo=False,  # SQLログを出力する場合はTrue
-                future=True
-            )
+            engine_kwargs = {
+                "echo": False,  # SQLログを出力する場合はTrue
+                "future": True,
+                "pool_pre_ping": True,  # 接続確認
+                "pool_recycle": 3600,   # 1時間でコネクション再利用
+            }
+            
+            # PostgreSQL用の追加設定
+            if settings.DATABASE_TYPE == "postgresql":
+                engine_kwargs.update({
+                    "pool_size": 10,        # コネクションプールサイズ
+                    "max_overflow": 20,     # 最大オーバーフロー
+                    "pool_timeout": 30,     # タイムアウト
+                    "connect_args": {
+                        "command_timeout": 60,
+                        "server_settings": {
+                            "jit": "off",  # JITを無効化（小さなクエリでのオーバーヘッド回避）
+                        }
+                    }
+                })
+            
+            self.engine = create_async_engine(database_url, **engine_kwargs)
             
             # セッションメーカー作成
             self.session_maker = async_sessionmaker(
