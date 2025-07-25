@@ -154,8 +154,11 @@ class DatabaseStateStore(StateStore):
                     votes={},  # Will be loaded from emotion_votes
                     audio_recording_id=None,  # Will be loaded from recordings
                     is_completed=False,  # Assume all database rounds are completed for now
-                    eligible_voters=eligible_voters
+                    eligible_voters=eligible_voters,
+                    voting_started_at=db_round.voting_started_at,
+                    vote_timeout_seconds=db_round.vote_timeout_seconds or 30
                 )
+                logger.info(f"⏰ Loaded round {db_round.id} with voting_started_at: {db_round.voting_started_at}")
                 rounds.append(round_data)
             
             # Determine current_round based on room phase
@@ -247,6 +250,7 @@ class DatabaseStateStore(StateStore):
             
             for i, round_data in enumerate(rounds_to_save):
                 if round_data.id not in existing_round_ids:
+                    # Create new round
                     # Get emotion type - use emotion_id directly
                     emotion_result = await session.execute(
                         select(EmotionType).where(EmotionType.id == round_data.emotion_id)
@@ -274,9 +278,27 @@ class DatabaseStateStore(StateStore):
                         prompt_text=round_data.phrase,
                         emotion_id=round_data.emotion_id,
                         round_number=i + 1,  # Calculate based on order
-                        eligible_voters=eligible_voters_json
+                        eligible_voters=eligible_voters_json,
+                        voting_started_at=round_data.voting_started_at,
+                        vote_timeout_seconds=round_data.vote_timeout_seconds
                     )
                     session.add(db_round)
+                else:
+                    # Update existing round
+                    existing_round_result = await session.execute(
+                        select(Round).where(Round.id == round_data.id)
+                    )
+                    existing_round = existing_round_result.scalar_one_or_none()
+                    
+                    if existing_round:
+                        # Update voting-related fields
+                        import json
+                        eligible_voters_json = json.dumps(round_data.eligible_voters) if round_data.eligible_voters else None
+                        
+                        existing_round.eligible_voters = eligible_voters_json
+                        existing_round.voting_started_at = round_data.voting_started_at
+                        existing_round.vote_timeout_seconds = round_data.vote_timeout_seconds
+                        logger.info(f"⏰ Updated existing round {round_data.id} with voting_started_at: {round_data.voting_started_at}")
             
             await session.commit()
     

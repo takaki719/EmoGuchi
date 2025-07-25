@@ -89,6 +89,8 @@ class Round(Base):
     emotion_id = Column(String(50), ForeignKey("emotion_types.id"), nullable=False)  # 正解感情
     round_number = Column(Integer, nullable=False)
     eligible_voters = Column(Text, nullable=True)  # JSON string of eligible voter IDs
+    voting_started_at = Column(DateTime(timezone=True), nullable=True)  # 投票開始時刻
+    vote_timeout_seconds = Column(Integer, default=30)  # 投票制限時間
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     
     # Relations

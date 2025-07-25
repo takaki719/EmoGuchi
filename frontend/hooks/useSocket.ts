@@ -132,6 +132,9 @@ export const useSocket = () => {
       store.setCurrentRound(null);
       store.setSpeakerEmotion(null);
       
+      // Stop vote timer when round ends
+      store.stopVoteTimer();
+      
       // Set game complete if the game is finished
       if (data.isGameComplete) {
         console.log('🏆 Game completed! Setting gameComplete state');
@@ -192,6 +195,15 @@ export const useSocket = () => {
         console.log('✅ Audio URL created successfully:', audioUrl);
         console.log('🎯 Audio processed:', data.is_processed);
         
+        // Start vote timer if timer information is provided
+        if (data.voting_started_at && data.vote_timeout_seconds) {
+          console.log('⏰ Starting vote timer:', {
+            startTime: data.voting_started_at,
+            timeout: data.vote_timeout_seconds
+          });
+          store.setVoteTimer(data.voting_started_at, data.vote_timeout_seconds);
+        }
+        
       } catch (error) {
         console.error('❌ Error creating audio URL:', error);
         console.error('❌ Audio data details:', data.audio);
@@ -214,6 +226,16 @@ export const useSocket = () => {
       return (originalEmit as any).apply(socket, [eventName, ...args]);
     };
 
+    // Vote timeout handling
+    socket.on('vote_timeout', (data) => {
+      console.log('⏰ Vote timeout received:', data);
+      store.setError(data.message);
+      // タイムアウト通知を表示（数秒後に自動消去）
+      setTimeout(() => {
+        store.setError(null);
+      }, 3000);
+    });
+
     // Error handling
     socket.on('error', (data) => {
       store.setError(`${data.code}: ${data.message}`);
@@ -227,6 +249,7 @@ export const useSocket = () => {
       socket.off('room_state');
       socket.off('player_joined');
       socket.off('player_reconnected');
+      socket.off('vote_timeout');
       socket.off('player_left');
       socket.off('left_room');
       socket.off('player_disconnected');

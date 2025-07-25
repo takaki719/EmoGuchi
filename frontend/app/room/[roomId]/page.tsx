@@ -9,6 +9,7 @@ import { translations } from '@/lib/translations';
 import { AudioRecorder } from '@/components/AudioRecorder';
 import { AudioPlayer } from '@/components/AudioPlayer';
 import EmotionWheel3Layer from '@/components/EmotionWheel3Layer';
+import VoteTimer from '@/components/VoteTimer';
 import { getApiUrl } from '@/utils/api';
 
 // Edge Runtime 対応
@@ -32,6 +33,7 @@ export default function RoomPage({ params }: { params: { roomId: string } }) {
     error,
     audioUrl,
     isAudioProcessed,
+    voteTimer,
     setPlayerName,
     setPlayerVote,
     setGameComplete,
@@ -691,6 +693,17 @@ export default function RoomPage({ params }: { params: { roomId: string } }) {
 
               {currentRound && !isCurrentSpeaker && !playerVote && audioUrl && (
                 <div className="space-y-3 sm:space-y-4">
+                  {/* Vote Timer */}
+                  {voteTimer.isActive && voteTimer.startTime && (
+                    <VoteTimer
+                      startTime={voteTimer.startTime}
+                      timeoutSeconds={voteTimer.timeoutSeconds}
+                      onTimeout={() => {
+                        console.log('⏰ Vote timer expired on client side');
+                        // サーバー側で自動的にラウンドが完了されるので、ここでは通知のみ
+                      }}
+                    />
+                  )}
                   <h3 className="font-semibold text-sm sm:text-base">{t.game.guessEmotion}</h3>
                   {roomState?.config?.vote_type === 'wheel' ? (
                     <div className="flex flex-col items-center space-y-6">
@@ -740,6 +753,17 @@ export default function RoomPage({ params }: { params: { roomId: string } }) {
 
               {currentRound && !isCurrentSpeaker && playerVote && (
                 <div className="text-center space-y-3">
+                  {/* Vote Timer for voters who have already voted */}
+                  {voteTimer.isActive && voteTimer.startTime && (
+                    <VoteTimer
+                      startTime={voteTimer.startTime}
+                      timeoutSeconds={voteTimer.timeoutSeconds}
+                      onTimeout={() => {
+                        console.log('⏰ Vote timer expired on client side');
+                        // サーバー側で自動的にラウンドが完了されるので、ここでは通知のみ
+                      }}
+                    />
+                  )}
                   <div className="bg-blue-50 p-4 rounded-lg border border-blue-200">
                     <p className="text-blue-800 font-semibold mb-2">{t.game.voteComplete}</p>
                     <div className="text-sm">

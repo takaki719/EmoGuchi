@@ -95,6 +95,9 @@ class Round(BaseModel):
     completed_at: Optional[datetime] = None
     # ラウンド開始時の参加者スナップショット（投票権管理用）
     eligible_voters: List[str] = Field(default_factory=list)  # player_ids who can vote
+    # 投票タイムアウト関連
+    voting_started_at: Optional[datetime] = None  # 投票開始時刻
+    vote_timeout_seconds: int = 30  # 投票制限時間（秒）
 
 class Room(BaseModel):
     id: str = Field(default_factory=generate_room_id)

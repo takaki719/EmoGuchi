@@ -25,6 +25,13 @@ interface GameStore {
   isLoading: boolean;
   error: string | null;
   
+  // Vote timer state
+  voteTimer: {
+    startTime: string | null;
+    timeoutSeconds: number;
+    isActive: boolean;
+  };
+  
   // Actions
   setRoomState: (state: RoomState) => void;
   setConnected: (connected: boolean) => void;
@@ -41,6 +48,8 @@ interface GameStore {
   setAudioProcessed: (processed: boolean) => void;
   setLoading: (loading: boolean) => void;
   setError: (error: string | null) => void;
+  setVoteTimer: (startTime: string | null, timeoutSeconds?: number) => void;
+  stopVoteTimer: () => void;
   reset: () => void;
 }
 
@@ -61,6 +70,11 @@ export const useGameStore = create<GameStore>((set) => ({
   isAudioProcessed: false,
   isLoading: false,
   error: null,
+  voteTimer: {
+    startTime: null,
+    timeoutSeconds: 30,
+    isActive: false,
+  },
   
   // Actions
   setRoomState: (state) => set({ roomState: state }),
@@ -78,6 +92,19 @@ export const useGameStore = create<GameStore>((set) => ({
   setAudioProcessed: (processed) => set({ isAudioProcessed: processed }),
   setLoading: (loading) => set({ isLoading: loading }),
   setError: (error) => set({ error }),
+  setVoteTimer: (startTime, timeoutSeconds = 30) => set(state => ({
+    voteTimer: {
+      startTime,
+      timeoutSeconds,
+      isActive: startTime !== null
+    }
+  })),
+  stopVoteTimer: () => set(state => ({
+    voteTimer: {
+      ...state.voteTimer,
+      isActive: false
+    }
+  })),
   reset: () => set({
     roomState: null,
     isConnected: false,
@@ -94,5 +121,10 @@ export const useGameStore = create<GameStore>((set) => ({
     isAudioProcessed: false,
     isLoading: false,
     error: null,
+    voteTimer: {
+      startTime: null,
+      timeoutSeconds: 30,
+      isActive: false,
+    },
   }),
 }));

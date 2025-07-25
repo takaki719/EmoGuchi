@@ -1,5 +1,6 @@
 import socketio
 from typing import Dict, Any
+from datetime import datetime, timezone
 from models.game import Player, GamePhase, Round, AudioRecording
 from logging import getLogger
 
@@ -458,10 +459,27 @@ class GameSocketEvents:
                 await events_instance.sio.emit('audio_received', {
                     'audio': processed_audio,
                     'speaker_name': room.players[player_id].name,
-                    'is_processed': room.config.hard_mode and processed_audio != audio_data
+                    'is_processed': room.config.hard_mode and processed_audio != audio_data,
+                    'vote_timeout_seconds': room.config.vote_timeout,  # タイマー情報を追加
+                    'voting_started_at': datetime.now(timezone.utc).isoformat()  # 開始時刻も送信
                 }, room=room_id, skip_sid=sid)
                 
+                # Start voting timer after audio is broadcast
+                room.current_round.voting_started_at = datetime.now(timezone.utc)
+                room.current_round.vote_timeout_seconds = room.config.vote_timeout
+                
+                state_store = get_state_store()
+                await state_store.update_room(room)
+                
+                # Schedule timeout check
+                import asyncio
+                timeout_task = asyncio.create_task(events_instance._check_vote_timeout(room_id, room.current_round.id))
+                logger.info(f"⏰ Timeout task created for round {room.current_round.id} in room {room_id}")
+                
                 logger.info(f"Audio received and broadcast from speaker {player_id} in room {room_id}, data size: {len(audio_bytes)}")
+                logger.info(f"⏰ Vote timer started: {room.config.vote_timeout}s timeout")
+                logger.info(f"⏰ voting_started_at set to: {room.current_round.voting_started_at}")
+                logger.info(f"⏰ Current UTC time: {datetime.now(timezone.utc)}")
                 
             except Exception as e:
                 logger.error(f"Error in audio_send: {e}", exc_info=True)
@@ -531,29 +549,38 @@ class GameSocketEvents:
                 # Check if all eligible voters have voted
                 # Use the snapshot of eligible voters from round start (ラウンド固定制)
                 
-                # Filter eligible voters to only those still connected
-                still_connected_eligible = [
-                    voter_id for voter_id in room.current_round.eligible_voters
-                    if voter_id in room.players and room.players[voter_id].is_connected
-                ]
+                # Count votes from eligible voters who either:
+                # 1. Already voted, OR
+                # 2. Are currently disconnected (can't vote anymore)
+                eligible_who_voted_or_disconnected = 0
                 
-                listener_count = len(still_connected_eligible)
+                for voter_id in room.current_round.eligible_voters:
+                    if voter_id in room.current_round.votes:
+                        # Already voted
+                        eligible_who_voted_or_disconnected += 1
+                    elif voter_id not in room.players or not room.players[voter_id].is_connected:
+                        # Disconnected (treated as abstention)
+                        eligible_who_voted_or_disconnected += 1
+                
+                total_eligible = len(room.current_round.eligible_voters)
                 votes_received = len(room.current_round.votes)
                 
-                logger.info(f"🗳️ Vote check: {votes_received}/{listener_count} votes received in room {room_id}")
+                logger.info(f"🗳️ Vote progress: {eligible_who_voted_or_disconnected}/{total_eligible} completed in room {room_id}")
+                logger.info(f"🗳️ Votes received: {votes_received}")
                 logger.info(f"🗳️ Original eligible voters: {room.current_round.eligible_voters}")
-                logger.info(f"🗳️ Still connected eligible: {still_connected_eligible}")
                 speaker = room.players.get(room.current_round.speaker_id)
                 logger.info(f"🗳️ Speaker ID: {room.current_round.speaker_id}, Speaker name: {speaker.name if speaker else 'Not found'}")
                 logger.info(f"🗳️ Votes: {room.current_round.votes}")
                 logger.info(f"🗳️ Vote player IDs: {list(room.current_round.votes.keys())}")
                 logger.info(f"🗳️ All player IDs: {[p.id for p in room.players.values()]}")
                 
-                if votes_received >= listener_count and listener_count > 0:
-                    logger.info(f"🎉 All votes received, completing round in room {room_id}")
+                # Complete round when all eligible voters have either voted or disconnected
+                if eligible_who_voted_or_disconnected >= total_eligible and total_eligible > 0:
+                    logger.info(f"🎉 All eligible voters accounted for, completing round in room {room_id}")
                     await events_instance._complete_round(room)
                 else:
-                    logger.info(f"⏳ Waiting for more votes: {votes_received}/{listener_count} in room {room_id}")
+                    remaining = total_eligible - eligible_who_voted_or_disconnected
+                    logger.info(f"⏳ Waiting for {remaining} more eligible voters in room {room_id}")
                 
                 logger.info(f"Vote submitted by player {player_id} in room {room_id}")
                 
@@ -872,3 +899,64 @@ class GameSocketEvents:
                     }, room=room_id)
         except Exception as e:
             logger.error(f"Error handling disconnect: {e}")
+    
+    async def _check_vote_timeout(self, room_id: str, round_id: str):
+        """Check if voting has timed out and force complete the round"""
+        try:
+            from datetime import datetime, timezone
+            import asyncio
+            
+            # Get the timeout duration from room config
+            room = await get_state_store().get_room(room_id)
+            if not room:
+                logger.warning(f"⏰ Timeout check: Room {room_id} not found")
+                return
+            timeout_seconds = room.config.vote_timeout
+            logger.info(f"⏰ Starting timeout check for room {room_id}, round {round_id}, timeout: {timeout_seconds}s")
+            
+            # Wait for the timeout duration
+            logger.info(f"⏰ Waiting {timeout_seconds} seconds for timeout...")
+            await asyncio.sleep(timeout_seconds)
+            logger.info(f"⏰ Timeout period elapsed for room {room_id}")
+            
+            # Get current room state
+            state_store = get_state_store()
+            room = await state_store.get_room(room_id)
+            
+            if not room or not room.current_round:
+                logger.info(f"⏰ Vote timeout check: Round already completed in room {room_id}")
+                return
+                
+            # Check if this is still the same round
+            if room.current_round.id != round_id:
+                logger.info(f"⏰ Vote timeout check: Different round active in room {room_id} (expected: {round_id}, current: {room.current_round.id})")
+                return
+                
+            # Check if voting has already completed
+            if room.current_round.is_completed:
+                logger.info(f"⏰ Vote timeout check: Round already completed in room {room_id}")
+                return
+                
+            # Check actual timeout based on voting_started_at
+            if room.current_round.voting_started_at:
+                elapsed = datetime.now(timezone.utc) - room.current_round.voting_started_at
+                timeout_seconds = room.current_round.vote_timeout_seconds
+                
+                if elapsed.total_seconds() >= timeout_seconds:
+                    logger.warning(f"⏰ Vote timeout in room {room_id}! Forcing round completion after {elapsed.total_seconds():.1f}s")
+                    
+                    # Emit timeout notification to all players
+                    await self.sio.emit('vote_timeout', {
+                        'message': 'Voting time is up! Round will complete with current votes.',
+                        'timeout_seconds': timeout_seconds
+                    }, room=room_id)
+                    
+                    # Force complete the round
+                    await self._complete_round(room)
+                else:
+                    logger.info(f"⏰ Vote timeout check: Still within time limit in room {room_id}")
+            else:
+                logger.warning(f"⏰ Vote timeout check: No voting_started_at time in room {room_id}")
+                
+        except Exception as e:
+            logger.error(f"Error in vote timeout check for room {room_id}: {e}", exc_info=True)
