@@ -214,6 +214,9 @@ class AudioStorageService:
                 raise ValueError("ローカルストレージモードではS3ダウンロードは使用できません")
             
             logger.info(f"📥 S3/R2からダウンロード開始: {s3_key} -> {local_path}")
+            logger.info(f"🔧 ダウンロード詳細: バケット={settings.S3_BUCKET}, キー={s3_key}")
+            logger.info(f"🔧 エンドポイント: {getattr(settings, 'R2_ENDPOINT_URL', 'NOT_SET')}")
+            logger.info(f"🔧 ストレージタイプ: {self.storage_type}")
             
             # ディレクトリがない場合は作成
             os.makedirs(os.path.dirname(local_path), exist_ok=True)
