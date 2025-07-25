@@ -106,6 +106,7 @@ export interface SocketEvents {
   speaker_emotion: (data: { roundId: string; emotionId: string; emotionName?: string }) => void;
   round_result: (data: RoundResult) => void;
   game_complete: (data: GameComplete) => void;
-  audio_received: (data: { audio: ArrayBuffer; speaker_name: string; is_processed?: boolean }) => void;
+  audio_received: (data: { audio: ArrayBuffer; speaker_name: string; is_processed?: boolean; voting_started_at?: string; vote_timeout_seconds?: number }) => void;
+  vote_timeout: (data: { message: string; timeout_seconds: number }) => void;
   error: (data: { code: string; message: string }) => void;
 }
