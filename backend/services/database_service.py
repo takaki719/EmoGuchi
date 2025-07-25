@@ -49,6 +49,7 @@ class DatabaseService:
                     "pool_timeout": 30,     # タイムアウト
                     "connect_args": {
                         "command_timeout": 60,
+                        "ssl": True,  # SSL接続を強制
                         "server_settings": {
                             "jit": "off",  # JITを無効化（小さなクエリでのオーバーヘッド回避）
                             "timezone": "UTC",  # タイムゾーンをUTCに設定
