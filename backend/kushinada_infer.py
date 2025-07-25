@@ -58,6 +58,11 @@ def download_model_from_r2():
         
     except Exception as e:
         logger.error(f"❌ R2からのモデルダウンロード失敗: {e}")
+        logger.error(f"📋 詳細: {type(e).__name__}: {str(e)}")
+        # R2の設定確認のためのデバッグ情報
+        logger.error(f"🔧 設定確認: KUSHINADA_MODEL_SOURCE={settings.KUSHINADA_MODEL_SOURCE}")
+        logger.error(f"🔧 設定確認: KUSHINADA_MODEL_R2_KEY={settings.KUSHINADA_MODEL_R2_KEY}")
+        logger.error(f"🔧 設定確認: R2_ENDPOINT_URL={getattr(settings, 'R2_ENDPOINT_URL', 'NOT_SET')}")
         raise
 
 class EmotionClassifier:
@@ -195,7 +200,10 @@ class EmotionClassifier:
         Returns:
             Tuple[感情ラベル, 予測クラスID, ロジット]
         """
-        self._initialize_models()
+        # 遅延初期化：実際に推論が必要になった時にモデルを初期化
+        if not self._is_initialized:
+            logger.info("🚀 初回推論実行 - モデルを初期化中...")
+            self._initialize_models()
         
         # ダミーモデルを使用する場合
         if hasattr(self, '_dummy_classifier') and not self.use_kushinada:
@@ -280,10 +288,11 @@ def calc_score_softmax_based(logits: torch.Tensor, target_label: int) -> int:
 _classifier = None
 
 def get_emotion_classifier() -> EmotionClassifier:
-    """感情分類器のシングルトンインスタンスを取得"""
+    """感情分類器のシングルトンインスタンスを取得（遅延初期化）"""
     global _classifier
     if _classifier is None:
         _classifier = EmotionClassifier()
+        # 初期化は実際に推論が必要になった時まで遅延
     return _classifier
 
 def classify_emotion_with_score(wav_path: str, target_emotion: int) -> dict:

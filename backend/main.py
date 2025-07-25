@@ -100,8 +100,9 @@ async def lifespan(app: FastAPI):
     """Manage application lifespan"""
     # Startup
     await init_database()
-    # ML model initialization runs in background, don't wait for it
-    asyncio.create_task(init_ml_models())
+    # Skip ML model initialization at startup to improve boot time
+    # Models will be loaded on-demand when first used
+    logger.info("🚀 Application started - ML models will be loaded on-demand")
     yield
     # Shutdown (if needed)
 
