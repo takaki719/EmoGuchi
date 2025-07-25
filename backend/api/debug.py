@@ -76,3 +76,51 @@ async def force_complete_round(room_id: str, debug_token: str = Header(alias="X-
         "message": f"Round in room {room_id} force completed",
         "new_phase": room.phase
     }
+
+@router.get("/room/{room_id}")
+async def get_room_debug(room_id: str, debug_token: str = Header(alias="X-Debug-Token")):
+    """Get room debug information"""
+    verify_debug_token(debug_token)
+    
+    room = await state_store.get_room(room_id)
+    if not room:
+        raise HTTPException(status_code=404, detail="Room not found")
+    
+    # Also check database directly
+    from services.database_service import DatabaseService
+    from models.database import ChatSession
+    from sqlalchemy import select
+    
+    db_config = None
+    try:
+        db_service = DatabaseService()
+        await db_service.initialize()
+        async with db_service.get_session() as session:
+            result = await session.execute(
+                select(ChatSession)
+                .where(ChatSession.room_code == room_id)
+                .where(ChatSession.status != "finished")
+                .order_by(ChatSession.created_at.desc())
+            )
+            chat_session = result.scalars().first()
+            if chat_session:
+                db_config = {
+                    "vote_type": chat_session.vote_type,
+                    "speaker_order": chat_session.speaker_order,
+                    "max_rounds": chat_session.max_rounds,
+                    "hard_mode": chat_session.hard_mode,
+                    "vote_timeout": chat_session.vote_timeout
+                }
+    except Exception as e:
+        db_config = f"Error: {str(e)}"
+    
+    return {
+        "room_id": room.id,
+        "phase": room.phase,
+        "config": room.config.dict(),
+        "database_config": db_config,
+        "players": {pid: {"name": p.name, "score": p.score, "is_host": p.is_host} for pid, p in room.players.items()},
+        "current_round": room.current_round.dict() if room.current_round else None,  
+        "round_history": [r.dict() for r in room.round_history],
+        "current_speaker_index": room.current_speaker_index
+    }

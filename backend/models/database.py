@@ -48,6 +48,14 @@ class ChatSession(Base):
     mode_id = Column(String(36), ForeignKey("modes.id"), nullable=False)
     max_players = Column(Integer, default=8)
     status = Column(Enum('waiting', 'playing', 'finished', name='chat_session_status'), default="waiting")
+    current_speaker_index = Column(Integer, default=0)  # スピーカーローテーション用インデックス
+    host_token = Column(String(36), nullable=True)  # ホスト認証トークン
+    # Room configuration fields
+    vote_type = Column(String(20), default="4choice")  # 4choice, 8choice, wheel
+    speaker_order = Column(String(20), default="sequential")  # sequential, random
+    max_rounds = Column(Integer, default=1)
+    hard_mode = Column(Boolean, default=False)
+    vote_timeout = Column(Integer, default=30)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     finished_at = Column(DateTime(timezone=True), nullable=True)
     

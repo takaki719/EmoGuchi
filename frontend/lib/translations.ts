@@ -219,14 +219,14 @@ export const translations = {
       peopleCounter: ''
     },
     emotions: {
-      joy: 'Joy',
-      anger: 'Anger',
-      sadness: 'Sadness',
-      surprise: 'Surprise',
-      fear: 'Fear',
-      disgust: 'Disgust',
-      trust: 'Trust',
-      anticipation: 'Anticipation'
+      joy: 'joy',
+      anger: 'anger',
+      sadness: 'sadness',
+      surprise: 'surprise',
+      fear: 'fear',
+      disgust: 'disgust',
+      trust: 'trust',
+      anticipation: 'anticipation'
     }
   }
 } as const;

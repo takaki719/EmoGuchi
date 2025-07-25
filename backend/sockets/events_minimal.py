@@ -195,7 +195,15 @@ class GameSocketEvents:
                 phrase, emotion_id = await llm_service.generate_phrase_with_emotion(room.config.mode)
                 
                 # Get current speaker
+                logger.info(f"🎤 START_ROUND: room.current_speaker_index BEFORE get_speaker_order = {room.current_speaker_index}")
+                speaker_order = room.get_speaker_order()
                 speaker = room.get_current_speaker()
+                logger.info(f"🎤 Starting round - Speaker index: {room.current_speaker_index}, Speaker: {speaker.name if speaker else 'None'}")
+                logger.info(f"🎤 Speaker order: {speaker_order}")
+                logger.info(f"🎤 Speaker order length: {len(speaker_order)}")
+                logger.info(f"🎤 All players: {[(pid, p.name, p.is_connected) for pid, p in room.players.items()]}")
+                logger.info(f"🎤 Speaker calculation: speaker_order[{room.current_speaker_index} % {len(speaker_order)}] = {speaker_order[room.current_speaker_index % len(speaker_order)] if speaker_order else 'No order'}")
+                
                 if not speaker:
                     await events_instance.sio.emit('error', {
                         'code': 'EMO-400',
@@ -226,15 +234,19 @@ class GameSocketEvents:
                 }, room=room_id)
                 
                 # Generate voting choices for this round
+                logger.info(f"🎯 Room config for voting: {room.config.dict()}")
                 from models.emotion import get_emotion_choices_for_voting
                 choice_data = []
                 if room.config.vote_type != "wheel":
                     if room.config.vote_type == "8choice":
+                        logger.info(f"🎯 Using 8-choice voting")
                         voting_choices = get_emotion_choices_for_voting(room.config.mode, emotion_id, 8)
                     else:
+                        logger.info(f"🎯 Using 4-choice voting (vote_type: {room.config.vote_type})")
                         voting_choices = get_emotion_choices_for_voting(room.config.mode, emotion_id, 4)
                     
                     choice_data = [{"id": choice.id, "name": choice.name_ja} for choice in voting_choices]
+                    logger.info(f"🎯 Generated {len(choice_data)} voting choices: {[c['name'] for c in choice_data]}")
                 
                 # Send round start to all players with voting choices
                 await events_instance.sio.emit('round_start', {
@@ -300,8 +312,13 @@ class GameSocketEvents:
                     return
                 
                 state_store = get_state_store()
+                logger.info(f"Getting state_store: {state_store}")
+                logger.info(f"State store type: {type(state_store)}")
                 room = await state_store.get_room(room_id)
                 if not room or not room.current_round:
+                    logger.error(f"🚨 audio_send: No active round - room exists: {room is not None}, current_round: {room.current_round if room else None}")
+                    if room:
+                        logger.error(f"🚨 audio_send: Room phase: {room.phase}, round_history length: {len(room.round_history)}")
                     await events_instance.sio.emit('error', {
                         'code': 'EMO-404',
                         'message': 'No active round'
@@ -447,6 +464,9 @@ class GameSocketEvents:
                 state_store = get_state_store()
                 room = await state_store.get_room(room_id)
                 if not room or not room.current_round:
+                    logger.error(f"🚨 submit_vote: No active round - room exists: {room is not None}, current_round: {room.current_round if room else None}")
+                    if room:
+                        logger.error(f"🚨 submit_vote: Room phase: {room.phase}, round_history length: {len(room.round_history)}")
                     await events_instance.sio.emit('error', {
                         'code': 'EMO-404',
                         'message': 'No active round'
@@ -474,15 +494,26 @@ class GameSocketEvents:
                 await state_store.update_room(room)
                 
                 # Check if all listeners have voted
-                # Only count connected players (excluding speaker)
-                connected_players = [p for p in room.players.values() if p.is_connected]
-                listener_count = len(connected_players) - 1  # Exclude speaker
+                # Only count players who were present when the round started AND are still connected
+                # This excludes: players who joined mid-game, players who left during the round
+                
+                # Get players who can vote: present at round start, still connected, not the speaker
+                eligible_voters = []
+                for player_id, player in room.players.items():
+                    if (player_id != room.current_round.speaker_id and  # Not the speaker
+                        player.is_connected):  # Still connected
+                        eligible_voters.append(player_id)
+                
+                listener_count = len(eligible_voters)
                 votes_received = len(room.current_round.votes)
                 
                 logger.info(f"🗳️ Vote check: {votes_received}/{listener_count} votes received in room {room_id}")
-                logger.info(f"🗳️ Connected players: {[p.name for p in connected_players]}")
-                logger.info(f"🗳️ Speaker ID: {room.current_round.speaker_id}")
+                logger.info(f"🗳️ Eligible voters: {eligible_voters}")
+                speaker = room.players.get(room.current_round.speaker_id)
+                logger.info(f"🗳️ Speaker ID: {room.current_round.speaker_id}, Speaker name: {speaker.name if speaker else 'Not found'}")
                 logger.info(f"🗳️ Votes: {room.current_round.votes}")
+                logger.info(f"🗳️ Vote player IDs: {list(room.current_round.votes.keys())}")
+                logger.info(f"🗳️ Connected player IDs: {[p.id for p in connected_players]}")
                 
                 if votes_received >= listener_count and listener_count > 0:
                     logger.info(f"🎉 All votes received, completing round in room {room_id}")
@@ -494,6 +525,120 @@ class GameSocketEvents:
                 
             except Exception as e:
                 logger.error(f"Error in submit_vote: {e}", exc_info=True)
+                await events_instance.sio.emit('error', {
+                    'code': 'EMO-500',
+                    'message': f'Internal server error: {str(e)}'
+                }, room=sid)
+        
+        @self.sio.event
+        async def restart_game(sid, data):
+            """Restart the game (host only)"""
+            logger.info(f"🔄 restart_game event received from {sid} with data: {data}")
+            try:
+                session = await events_instance.sio.get_session(sid)
+                room_id = session.get('room_id')
+                player_id = session.get('player_id')
+                
+                if not room_id or not player_id:
+                    await events_instance.sio.emit('error', {
+                        'code': 'EMO-401',
+                        'message': 'Not authenticated'
+                    }, room=sid)
+                    return
+                
+                state_store = get_state_store()
+                room = await state_store.get_room(room_id)
+                if not room:
+                    await events_instance.sio.emit('error', {
+                        'code': 'EMO-404',
+                        'message': 'Room not found'
+                    }, room=sid)
+                    return
+                
+                logger.info(f"🔄 Room loaded from DB for restart: {room.config.dict()}")
+                
+                # Double-check database directly
+                try:
+                    from services.database_service import DatabaseService
+                    from models.database import ChatSession
+                    from sqlalchemy import select
+                    
+                    db_service = DatabaseService()
+                    await db_service.initialize()
+                    async with db_service.get_session() as session:
+                        result = await session.execute(select(ChatSession).where(ChatSession.room_code == room_id))
+                        chat_session = result.scalar_one_or_none()
+                        if chat_session:
+                            logger.info(f"🔄 Direct DB check - max_rounds: {chat_session.max_rounds}, vote_type: {chat_session.vote_type}")
+                except Exception as e:
+                    logger.error(f"🔄 DB check failed: {e}")
+                
+                player = room.players.get(player_id)
+                if not player or not player.is_host:
+                    await events_instance.sio.emit('error', {
+                        'code': 'EMO-403',
+                        'message': 'Only host can restart the game'
+                    }, room=sid)
+                    return
+                
+                # Create new game session instead of resetting current one
+                logger.info(f"🔄 Creating new game session for room {room_id}")
+                logger.info(f"🔄 Current room config before restart: {room.config.dict()}")
+                
+                # Create new room with same config and players
+                from models.game import Room, Player
+                new_room = Room(
+                    id=room_id,  # Same room ID for Socket.IO compatibility
+                    config=room.config,  # Keep current config
+                    players={},  # Will be populated below
+                    phase=GamePhase.WAITING,
+                    current_round=None,
+                    round_history=[],
+                    current_speaker_index=0
+                )
+                
+                # Copy players with reset scores
+                logger.info(f"🔄 Copying {len(room.players)} players to new session")
+                for player in room.players.values():
+                    new_player = Player(
+                        id=player.id,  # Keep same player ID
+                        name=player.name,
+                        is_host=player.is_host,
+                        score=0,  # Reset score
+                        is_connected=player.is_connected
+                    )
+                    new_room.players[player.id] = new_player
+                
+                new_room.reset_speaker_order()  # Initialize speaker order for new game
+                
+                # End current session and create new one
+                state_store = get_state_store()
+                if hasattr(state_store, '_end_current_session_and_create_new'):
+                    # Use special method for DatabaseStateStore
+                    await state_store._end_current_session_and_create_new(room, new_room)
+                else:
+                    # Fallback for MemoryStateStore
+                    await state_store.update_room(new_room)
+                
+                # Update reference for subsequent operations
+                room = new_room
+                
+                # Send updated room state to all players
+                player_names = [p.name for p in room.players.values()]
+                room_state_data = {
+                    'roomId': room.id,
+                    'players': player_names,
+                    'phase': room.phase,
+                    'config': room.config.model_dump(),
+                    'currentSpeaker': None
+                }
+                logger.info(f"🔄 Sending room_state after restart: {room_state_data}")
+                await events_instance.sio.emit('room_state', room_state_data, room=room_id)
+                
+                logger.info(f"🔄 Game restarted in room {room_id}")
+                
+            except Exception as e:
+                logger.error(f"Error in restart_game: {e}", exc_info=True)
                 await events_instance.sio.emit('error', {
                     'code': 'EMO-500',
                     'message': f'Internal server error: {str(e)}'
@@ -532,6 +677,11 @@ class GameSocketEvents:
             completed_cycles = completed_rounds // total_players if total_players > 0 else 0
             is_game_complete = completed_cycles >= room.config.max_rounds
             
+            logger.info(f"🔄 Round completion check: completed_rounds={completed_rounds}, total_players={total_players}, "
+                       f"completed_cycles={completed_cycles}, max_rounds={room.config.max_rounds}, "
+                       f"is_game_complete={is_game_complete}, current_speaker_index={room.current_speaker_index}")
+            logger.info(f"🔄 Room config during completion check: {room.config.dict()}")
+            
             # Mark round as completed
             round_data.is_completed = True
             room.round_history.append(round_data)
@@ -544,10 +694,40 @@ class GameSocketEvents:
                 room.phase = GamePhase.WAITING  # Ready for next round
             
             # Move to next speaker
-            room.current_speaker_index = (room.current_speaker_index + 1) % len(room.players)
+            speaker_order = room.get_speaker_order()
+            logger.info(f"🔄 BEFORE index update: current_speaker_index={room.current_speaker_index}, speaker_order_length={len(speaker_order)}")
+            
+            next_speaker_index = (room.current_speaker_index + 1) % len(speaker_order)
+            logger.info(f"🔄 CALCULATED next_speaker_index: {next_speaker_index}")
+            
+            # If we've wrapped around to 0, we're starting a new cycle
+            if next_speaker_index == 0 and room.current_speaker_index != 0:
+                new_cycle_num = (len(room.round_history) // len(speaker_order)) + 1
+                logger.info(f"🔄 Starting new cycle #{new_cycle_num}, resetting speaker order")
+                room.reset_speaker_order()
+            
+            logger.info(f"🔄 SETTING room.current_speaker_index to {next_speaker_index}")
+            room.current_speaker_index = next_speaker_index
+            logger.info(f"🔄 AFTER setting: room.current_speaker_index={room.current_speaker_index}")
+            
+            # Log next speaker info
+            updated_speaker_order = room.get_speaker_order()
+            next_speaker = room.get_current_speaker()
+            logger.info(f"🎤 Round completed - Next speaker: index={room.current_speaker_index}, name={next_speaker.name if next_speaker else 'None'}")
+            logger.info(f"🎤 Updated speaker order: {updated_speaker_order}")
+            logger.info(f"🎤 Total rounds completed so far: {len(room.round_history)}")
             
             state_store = get_state_store()
+            logger.info(f"🔄 BEFORE DB save: room.current_speaker_index={room.current_speaker_index}")
             await state_store.update_room(room)
+            logger.info(f"🔄 AFTER DB save: room.current_speaker_index={room.current_speaker_index}")
+            
+            # Verify by re-fetching from DB
+            saved_room = await state_store.get_room(room.id)
+            if saved_room:
+                logger.info(f"🔄 DB VERIFICATION: saved room current_speaker_index={saved_room.current_speaker_index}")
+            else:
+                logger.error(f"🔄 DB VERIFICATION: Could not retrieve room from DB")
             
             # Send results
             scores = {player.name: player.score for player in room.players.values()}
@@ -589,10 +769,20 @@ class GameSocketEvents:
             
             await self.sio.emit('round_result', result_data, room=room.id)
             
-            if is_game_complete:
-                logger.info(f"🏆 Game completed in room {room.id}!")
+            # Send updated room state if game continues (so frontend knows next speaker)
+            if not is_game_complete:
+                next_speaker = room.get_current_speaker()
+                player_names = [p.name for p in room.players.values()]
+                await self.sio.emit('room_state', {
+                    'roomId': room.id,
+                    'players': player_names,
+                    'phase': room.phase,
+                    'config': room.config.model_dump(),
+                    'currentSpeaker': next_speaker.name if next_speaker else None
+                }, room=room.id)
+                logger.info(f"⏭️ Round completed, ready for next round in room {room.id}. Next speaker: {next_speaker.name if next_speaker else 'None'}")
             else:
-                logger.info(f"⏭️ Round completed, ready for next round in room {room.id}")
+                logger.info(f"🏆 Game completed in room {room.id}!")
             
             logger.info(f"Round completed in room {room.id}: {correct_emotion_name}")
             
@@ -625,70 +815,6 @@ class GameSocketEvents:
                 await state_store.save_score(room_id, round_id, player_id, points, score_type)
         except Exception as e:
             logger.error(f"Error saving score for player {player_id}: {e}", exc_info=True)
-    
-        @self.sio.event
-        async def restart_game(sid, data):
-            """Restart the game (host only)"""
-            try:
-                session = await events_instance.sio.get_session(sid)
-                room_id = session.get('room_id')
-                player_id = session.get('player_id')
-                
-                if not room_id or not player_id:
-                    await events_instance.sio.emit('error', {
-                        'code': 'EMO-401',
-                        'message': 'Not authenticated'
-                    }, room=sid)
-                    return
-                
-                state_store = get_state_store()
-                room = await state_store.get_room(room_id)
-                if not room:
-                    await events_instance.sio.emit('error', {
-                        'code': 'EMO-404',
-                        'message': 'Room not found'
-                    }, room=sid)
-                    return
-                
-                player = room.players.get(player_id)
-                if not player or not player.is_host:
-                    await events_instance.sio.emit('error', {
-                        'code': 'EMO-403',
-                        'message': 'Only host can restart the game'
-                    }, room=sid)
-                    return
-                
-                # Reset game state
-                room.phase = GamePhase.WAITING
-                room.current_round = None
-                room.round_history = []
-                room.current_speaker_index = 0
-                
-                # Reset all player scores
-                for player in room.players.values():
-                    player.score = 0
-                
-                state_store = get_state_store()
-                await state_store.update_room(room)
-                
-                # Send updated room state to all players
-                player_names = [p.name for p in room.players.values()]
-                await events_instance.sio.emit('room_state', {
-                    'roomId': room.id,
-                    'players': player_names,
-                    'phase': room.phase,
-                    'config': room.config.model_dump(),
-                    'currentSpeaker': None
-                }, room=room_id)
-                
-                logger.info(f"🔄 Game restarted in room {room_id}")
-                
-            except Exception as e:
-                logger.error(f"Error in restart_game: {e}", exc_info=True)
-                await events_instance.sio.emit('error', {
-                    'code': 'EMO-500',
-                    'message': f'Internal server error: {str(e)}'
-                }, room=sid)
     
     async def _handle_player_disconnect(self, sid):
         """Handle player disconnection"""

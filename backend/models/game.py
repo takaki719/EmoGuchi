@@ -102,16 +102,31 @@ class Room(BaseModel):
     current_round: Optional[Round] = None
     round_history: List[Round] = Field(default_factory=list)
     current_speaker_index: int = 0
+    speaker_order_cache: Optional[List[str]] = None  # Cached speaker order for current cycle
     host_token: str = Field(default_factory=lambda: str(uuid.uuid4()))
     created_at: datetime = Field(default_factory=datetime.now)
     
     def get_speaker_order(self) -> List[str]:
         """Get ordered list of player IDs for speaking"""
-        player_ids = list(self.players.keys())
+        # Check if cached order is still valid
+        connected_player_ids = {pid for pid, player in self.players.items() if player.is_connected}
+        if (self.speaker_order_cache and 
+            set(self.speaker_order_cache) == connected_player_ids):
+            return self.speaker_order_cache
+        
+        # Generate new order - only include connected players
+        player_ids = [pid for pid, player in self.players.items() if player.is_connected]
         if self.config.speaker_order == SpeakerOrder.RANDOM:
             import random
             random.shuffle(player_ids)
+        
+        # Cache the order
+        self.speaker_order_cache = player_ids
         return player_ids
+    
+    def reset_speaker_order(self):
+        """Reset speaker order cache for a new cycle"""
+        self.speaker_order_cache = None
     
     def get_current_speaker(self) -> Optional[Player]:
         """Get current speaker"""

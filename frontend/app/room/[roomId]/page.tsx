@@ -92,10 +92,12 @@ export default function RoomPage({ params }: { params: { roomId: string } }) {
   // Update local state when room state changes
   useEffect(() => {
     if (roomState?.config) {
+      console.log('🔧 Updating settings from roomState:', roomState.config);
       setGameMode(roomState.config.mode);
       setMaxRounds(roomState.config.max_rounds);
       setSpeakerOrder(roomState.config.speaker_order);
       setHardMode(roomState.config.hard_mode || false);
+      console.log('🔧 Settings updated - maxRounds set to:', roomState.config.max_rounds);
     }
   }, [roomState?.config]);
 
@@ -174,31 +176,43 @@ export default function RoomPage({ params }: { params: { roomId: string } }) {
   };
 
   const handleUpdateSettings = async () => {
+    console.log('🔐 handleUpdateSettings called');
     try {
       const hostToken = localStorage.getItem('hostToken');
+      console.log('🔐 Host token from localStorage:', hostToken ? `${hostToken.substring(0, 8)}...` : 'null');
       if (!hostToken) {
         alert(t.common.noHostPrivileges);
         return;
       }
 
-      const response = await fetch(`${getApiUrl()}/api/v1/rooms/${encodeURIComponent(roomId)}/config`, {
+      const requestBody = {
+        mode: gameMode,
+        vote_type: gameMode === 'advanced' ? '8choice' : 
+                  gameMode === 'wheel' ? 'wheel' : '4choice',
+        speaker_order: speakerOrder,
+        max_rounds: maxRounds,
+        hard_mode: hardMode
+      };
+      
+      const url = `${getApiUrl()}/api/v1/rooms/${encodeURIComponent(roomId)}/config`;
+      console.log('🔐 Settings update URL:', url);
+      console.log('🔐 Current state values - maxRounds:', maxRounds, 'gameMode:', gameMode);
+      console.log('🔐 Settings update body:', requestBody);
+      
+      const response = await fetch(url, {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${hostToken}`
         },
-        body: JSON.stringify({
-          mode: gameMode,
-          vote_type: gameMode === 'advanced' ? '8choice' : 
-                    gameMode === 'wheel' ? 'wheel' : '4choice',
-          speaker_order: speakerOrder,
-          max_rounds: maxRounds,
-          hard_mode: hardMode
-        }),
+        body: JSON.stringify(requestBody),
       });
 
+      console.log('🔐 Settings update response status:', response.status);
+      
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({ detail: 'Failed to update settings' }));
+        console.log('🔐 Settings update error:', errorData);
         throw new Error(errorData.detail || 'Failed to update settings');
       }
 
@@ -664,7 +678,18 @@ export default function RoomPage({ params }: { params: { roomId: string } }) {
                 </>
               )}
 
-              {currentRound && !isCurrentSpeaker && !playerVote && (
+              {currentRound && !isCurrentSpeaker && !playerVote && !audioUrl && (
+                <div className="text-center bg-yellow-50 border border-yellow-200 rounded-lg p-4">
+                  <p className="text-yellow-700 font-medium">
+                    ⏳ スピーカーの音声録音を待っています...
+                  </p>
+                  <p className="text-yellow-600 text-sm mt-1">
+                    音声を聞いてから感情を選択してください
+                  </p>
+                </div>
+              )}
+
+              {currentRound && !isCurrentSpeaker && !playerVote && audioUrl && (
                 <div className="space-y-3 sm:space-y-4">
                   <h3 className="font-semibold text-sm sm:text-base">{t.game.guessEmotion}</h3>
                   {roomState?.config?.vote_type === 'wheel' ? (

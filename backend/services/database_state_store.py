@@ -7,6 +7,7 @@ from datetime import datetime, timezone
 from sqlalchemy import select, delete
 from sqlalchemy.orm import selectinload
 import logging
+import uuid
 
 from models.game import Room, RoomConfig, Player, Round as RoundData
 from models import AudioRecording
@@ -69,7 +70,13 @@ class DatabaseStateStore(StateStore):
                 room_code=room.id,  # Use room.id as room_code
                 mode_id=mode.id,
                 max_players=settings.MAX_PLAYERS_PER_ROOM,
-                status="waiting"
+                status="waiting",
+                host_token=room.host_token,
+                vote_type=room.config.vote_type,
+                speaker_order=room.config.speaker_order,
+                max_rounds=room.config.max_rounds,
+                hard_mode=room.config.hard_mode,
+                vote_timeout=room.config.vote_timeout
             )
             session.add(chat_session)
             
@@ -88,7 +95,7 @@ class DatabaseStateStore(StateStore):
     async def get_room(self, room_id: str) -> Optional[Room]:
         """Get a room from the database"""
         async with self.db.get_session() as session:
-            # Get chat session with all related data
+            # Get the latest active chat session for this room_code
             result = await session.execute(
                 select(ChatSession)
                 .options(
@@ -96,9 +103,11 @@ class DatabaseStateStore(StateStore):
                     selectinload(ChatSession.participants),
                     selectinload(ChatSession.rounds).selectinload(Round.emotion)
                 )
-                .where(ChatSession.id == room_id)
+                .where(ChatSession.room_code == room_id)
+                .where(ChatSession.status != "finished")
+                .order_by(ChatSession.created_at.desc())  # Get the latest session
             )
-            chat_session = result.scalar_one_or_none()
+            chat_session = result.scalars().first()
             
             if not chat_session:
                 return None
@@ -106,7 +115,11 @@ class DatabaseStateStore(StateStore):
             # Reconstruct Room object
             config = RoomConfig(
                 mode=chat_session.mode.name,
-                vote_timeout=30  # Default, not stored in DB
+                vote_type=chat_session.vote_type,
+                speaker_order=chat_session.speaker_order,
+                max_rounds=chat_session.max_rounds,
+                hard_mode=chat_session.hard_mode,
+                vote_timeout=chat_session.vote_timeout
             )
             
             # Load players
@@ -150,6 +163,8 @@ class DatabaseStateStore(StateStore):
                 phase=self._map_status_to_phase(chat_session.status),  # Map status to phase
                 current_round=current_round,
                 round_history=rounds,
+                current_speaker_index=chat_session.current_speaker_index or 0,
+                host_token=chat_session.host_token or str(uuid.uuid4()),  # Fallback for existing records
                 created_at=chat_session.created_at
             )
             
@@ -158,22 +173,33 @@ class DatabaseStateStore(StateStore):
     async def update_room(self, room: Room) -> None:
         """Update a room in the database"""
         async with self.db.get_session() as session:
-            # Update chat session
+            # Update the latest active chat session for this room_code
             result = await session.execute(
-                select(ChatSession).where(ChatSession.id == room.id)
+                select(ChatSession)
+                .where(ChatSession.room_code == room.id)
+                .where(ChatSession.status != "finished")
+                .order_by(ChatSession.created_at.desc())
             )
-            chat_session = result.scalar_one_or_none()
+            chat_session = result.scalars().first()
             
             if not chat_session:
                 raise ValueError(f"Room {room.id} not found")
             
             chat_session.status = self._map_phase_to_status(room.phase)
+            chat_session.current_speaker_index = room.current_speaker_index  # Update speaker index
+            chat_session.host_token = room.host_token  # Update host token
+            # Update room configuration
+            chat_session.vote_type = room.config.vote_type
+            chat_session.speaker_order = room.config.speaker_order
+            chat_session.max_rounds = room.config.max_rounds
+            chat_session.hard_mode = room.config.hard_mode
+            chat_session.vote_timeout = room.config.vote_timeout
             if room.phase == "closed":
                 chat_session.finished_at = datetime.now(timezone.utc)
             
             # Update participants
             existing_participants = await session.execute(
-                select(RoomParticipant).where(RoomParticipant.chat_session_id == room.id)
+                select(RoomParticipant).where(RoomParticipant.chat_session_id == chat_session.id)
             )
             existing_map = {p.session_id: p for p in existing_participants.scalars()}
             
@@ -181,7 +207,7 @@ class DatabaseStateStore(StateStore):
             for player_id, player in room.players.items():
                 if player_id not in existing_map:
                     participant = RoomParticipant(
-                        chat_session_id=room.id,
+                        chat_session_id=chat_session.id,  # Use correct ChatSession.id
                         session_id=player.id,
                         player_name=player.name,
                         is_host=player.is_host
@@ -197,8 +223,9 @@ class DatabaseStateStore(StateStore):
                     await session.delete(participant)
             
             # Update rounds (both current_round and round_history)
+            # Get the actual ChatSession.id for this room_code
             existing_rounds = await session.execute(
-                select(Round).where(Round.chat_session_id == room.id)
+                select(Round).where(Round.chat_session_id == chat_session.id)
             )
             existing_round_ids = {r.id for r in existing_rounds.scalars()}
             
@@ -228,7 +255,7 @@ class DatabaseStateStore(StateStore):
                     
                     db_round = Round(
                         id=round_data.id,  # Use the same ID
-                        chat_session_id=room.id,
+                        chat_session_id=chat_session.id,  # Use correct ChatSession.id
                         speaker_session_id=round_data.speaker_id,
                         prompt_text=round_data.phrase,
                         emotion_id=round_data.emotion_id,
@@ -241,9 +268,9 @@ class DatabaseStateStore(StateStore):
     async def delete_room(self, room_id: str) -> None:
         """Delete a room from the database"""
         async with self.db.get_session() as session:
-            # Cascade delete will handle related records
+            # Delete all sessions for this room_code (cascade delete will handle related records)
             await session.execute(
-                delete(ChatSession).where(ChatSession.id == room_id)
+                delete(ChatSession).where(ChatSession.room_code == room_id)
             )
             await session.commit()
     
@@ -257,7 +284,7 @@ class DatabaseStateStore(StateStore):
             chat_sessions = result.scalars().all()
             
             for chat_session in chat_sessions:
-                room = await self.get_room(chat_session.id)
+                room = await self.get_room(chat_session.room_code)  # Use room_code instead of id
                 if room:
                     rooms[room.id] = room
         
@@ -342,3 +369,68 @@ class DatabaseStateStore(StateStore):
             session.add(score)
             await session.commit()
             logger.info(f"Saved score: player={player_id}, round={round_id}, points={points}, type={score_type}")
+    
+    async def _end_current_session_and_create_new(self, old_room: Room, new_room: Room) -> None:
+        """End current session and create new session for restart_game"""
+        async with self.db.get_session() as session:
+            # 1. End ALL active sessions for this room_code
+            result = await session.execute(
+                select(ChatSession)
+                .where(ChatSession.room_code == old_room.id)
+                .where(ChatSession.status != "finished")
+            )
+            active_sessions = result.scalars().all()
+            
+            for current_session in active_sessions:
+                current_session.status = "finished"
+                current_session.finished_at = datetime.now(timezone.utc)
+                logger.info(f"🔄 Ended session {current_session.id}")
+            
+            logger.info(f"🔄 Ended {len(active_sessions)} active sessions for room_code {old_room.id}")
+            
+            # 2. Create new session with same room_code
+            # Check if mode exists, create if not
+            mode_result = await session.execute(
+                select(Mode).where(Mode.name == new_room.config.mode)
+            )
+            mode = mode_result.scalar_one_or_none()
+            
+            if not mode:
+                mode = Mode(
+                    name=new_room.config.mode,
+                    description=f"{new_room.config.mode} mode"
+                )
+                session.add(mode)
+                await session.flush()
+            
+            # Create new chat session with same room_code but new ID
+            new_session = ChatSession(
+                # id will be auto-generated (new UUID)
+                room_code=new_room.id,  # Same room_code for Socket.IO compatibility
+                mode_id=mode.id,
+                max_players=settings.MAX_PLAYERS_PER_ROOM,
+                status="waiting",
+                host_token=new_room.host_token,
+                vote_type=new_room.config.vote_type,
+                speaker_order=new_room.config.speaker_order,
+                max_rounds=new_room.config.max_rounds,
+                hard_mode=new_room.config.hard_mode,
+                vote_timeout=new_room.config.vote_timeout
+            )
+            session.add(new_session)
+            await session.flush()  # Get the new session ID
+            
+            logger.info(f"🔄 Created new session {new_session.id} for room_code {new_room.id}")
+            
+            # 3. Create room participants for new session
+            for player in new_room.players.values():
+                participant = RoomParticipant(
+                    chat_session_id=new_session.id,  # New session ID
+                    session_id=player.id,
+                    player_name=player.name,
+                    is_host=player.is_host
+                )
+                session.add(participant)
+            
+            await session.commit()
+            logger.info(f"🔄 Successfully created new game session")

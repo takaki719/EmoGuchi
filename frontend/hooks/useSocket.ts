@@ -57,6 +57,9 @@ export const useSocket = () => {
       // lastResult should remain visible until manually cleared
       if (data.phase === 'waiting') {
         store.setGameComplete(null);
+        // Clear audio URL when returning to waiting phase (game restart)
+        store.setAudioUrl(null);
+        store.setAudioProcessed(false);
       }
     });
 
@@ -97,6 +100,8 @@ export const useSocket = () => {
       console.log('🎮 Created round object:', round);
       store.setCurrentRound(round);
       store.setLastResult(null); // Clear previous round result when new round starts
+      store.setAudioUrl(null); // Clear previous audio when new round starts
+      store.setAudioProcessed(false); // Reset audio processing flag
       
       console.log('🎮 Current player name in store:', store.playerName);
       console.log('🎮 Round speaker name:', round.speaker_name);
@@ -110,8 +115,8 @@ export const useSocket = () => {
       // For now, just process all speaker emotions to ensure functionality
       console.log('✅ Processing speaker_emotion (simplified)');
       
-      // Prioritize emotionName (Japanese) over emotionId (English)
-      const emotionToSet = data.emotionName || data.emotionId;
+      // Prioritize emotion (Japanese) over emotionId (English)
+      const emotionToSet = data.emotion || data.emotionId;
       console.log('🎭 Setting emotion:', emotionToSet);
       store.setSpeakerEmotion(emotionToSet);
     });
@@ -263,9 +268,13 @@ export const useSocket = () => {
   }, []);
 
   const restartGame = useCallback(() => {
+    console.log('🔄 restartGame called');
     const socket = socketClient.getSocket();
     if (socket) {
+      console.log('🔄 Emitting restart_game event');
       socket.emit('restart_game', {});
+    } else {
+      console.error('❌ Socket not available for restart_game');
     }
   }, []);
 

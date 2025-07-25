@@ -8,18 +8,27 @@ from services.state_store import state_store
 import uuid
 import logging
 
+logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/api/v1", tags=["rooms"])
 
 async def verify_host_token(room_id: str, authorization: Optional[str]) -> str:
     """Verify host token for room operations"""
+    logger.info(f"🔐 Host token verification for room {room_id}")
+    logger.info(f"🔐 Authorization header: {authorization[:50] if authorization else 'None'}...")
+    
     if not authorization or not authorization.startswith("Bearer "):
         raise HTTPException(status_code=401, detail="Missing or invalid authorization header")
     
     token = authorization.split(" ")[1]
+    logger.info(f"🔐 Extracted token: {token[:8]}...")
+    
     room = await state_store.get_room(room_id)
     
     if not room:
         raise HTTPException(status_code=404, detail="Room not found")
+    
+    logger.info(f"🔐 Room host token: {room.host_token[:8] if room.host_token else 'None'}...")
+    logger.info(f"🔐 Token match: {room.host_token == token}")
     
     if room.host_token != token:
         raise HTTPException(status_code=403, detail="Invalid host token")
@@ -135,6 +144,7 @@ async def update_room_config(
     authorization: Optional[str] = Header(None)
 ):
     """Update room configuration (host only, waiting phase only)"""
+    logger.info(f"🔧 Config update request for room {room_id}: {request.dict()}")
     await verify_host_token(room_id, authorization)
     room = await state_store.get_room(room_id)
     
@@ -146,6 +156,7 @@ async def update_room_config(
         raise HTTPException(status_code=400, detail="Can only change settings while waiting")
     
     # Update room configuration
+    logger.info(f"🔧 Old config: {room.config.dict()}")
     room.config = RoomConfig(
         mode=request.mode,
         vote_type=request.vote_type,
@@ -154,19 +165,22 @@ async def update_room_config(
         hard_mode=request.hard_mode,
         vote_timeout=room.config.vote_timeout  # Keep existing timeout
     )
+    logger.info(f"🔧 New config: {room.config.dict()}")
     
     await state_store.update_room(room)
     
     # Notify all players about config change via socket
     from main import sio
     player_names = [p.name for p in room.players.values()]
-    await sio.emit('room_state', {
+    room_state_data = {
         'roomId': room.id,
         'players': player_names,
         'phase': room.phase,
         'config': room.config.dict(),
         'currentSpeaker': None
-    }, room=room_id)
+    }
+    logger.info(f"🔧 Sending room_state update: {room_state_data}")
+    await sio.emit('room_state', room_state_data, room=room_id)
     
     return {"ok": True}
 

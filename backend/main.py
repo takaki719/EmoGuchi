@@ -45,9 +45,9 @@ async def init_database():
         db_service = DatabaseService()
         await db_service.initialize()
         
-        # Use database-backed state store
+        # Use database-backed state store (now with current_speaker_index support)
         state_store = DatabaseStateStore(db_service)
-        logger.info("✅ Database state store initialized")
+        logger.info("✅ Database state store initialized with speaker rotation support")
     else:
         # Use in-memory state store
         state_store = MemoryStateStore()
