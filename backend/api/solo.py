@@ -172,7 +172,19 @@ async def predict_emotion(
             device_id = str(uuid.uuid4())
             logger.info(f"📱 デバイスIDが未指定のため、一時ID生成: {device_id}")
         
-        logger.info(f"🎤 音声推論リクエスト受信 - ファイル: {file.filename}, 目標感情: {target_emotion}, デバイス: {device_id}")
+        # session_idをDB制限の36文字以内に調整
+        if len(device_id) > 36:
+            # "device_"プレフィックスを削除してUUID部分のみ使用
+            if device_id.startswith("device_"):
+                session_id = device_id[7:]  # "device_"を削除
+            else:
+                # 長すぎる場合は最初の36文字を使用
+                session_id = device_id[:36]
+            logger.info(f"📱 デバイスID調整: {device_id} -> {session_id}")
+        else:
+            session_id = device_id
+        
+        logger.info(f"🎤 音声推論リクエスト受信 - ファイル: {file.filename}, 目標感情: {target_emotion}, セッションID: {session_id}")
         
         # バリデーション
         if target_emotion not in [0, 1, 2, 3]:
@@ -214,8 +226,8 @@ async def predict_emotion(
         with open(temp_wav_path, 'rb') as wav_file:
             wav_data = wav_file.read()
         
-        # 端末IDベースのセッションIDを使用
-        audio_url = storage_service.save_audio(wav_data, device_id)
+        # 調整済みのセッションIDを使用
+        audio_url = storage_service.save_audio(wav_data, session_id)
         logger.info(f"💾 音声ファイル永続保存完了: {audio_url}")
         
         # AI推論用のファイルパス取得
@@ -244,11 +256,13 @@ async def predict_emotion(
         
         # データベースに保存
         try:
+            logger.info("🔍 Starting database save process")
             from services.database_service import get_database_service
             db_service = await get_database_service()
+            logger.info("🔍 Got database service instance")
             
-            # 端末固定IDを使用
-            user_session_id = device_id
+            # 調整済みのsession_idを使用
+            user_session_id = session_id
             
             # 感情ID変換（数値から文字列へ）
             emotion_id_map = {0: "neutral", 1: "joy", 2: "anger", 3: "sadness"}
@@ -273,6 +287,9 @@ async def predict_emotion(
                 "duration": None  # 音声長は後で実装
             }
             
+            # セッションIDの長さを確認
+            logger.info(f"🔍 session_id length: {len(user_session_id)} chars")
+            logger.info(f"🔍 About to save session_data: {session_data}")
             solo_session_id = await db_service.save_solo_session(session_data)
             logger.info(f"💾 ソロセッションDB保存完了: {solo_session_id}")
             

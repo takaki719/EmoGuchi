@@ -6,6 +6,7 @@ from typing import Dict, Optional
 from datetime import datetime, timezone
 from sqlalchemy import select, delete
 from sqlalchemy.orm import selectinload
+import logging
 
 from models.game import Room, RoomConfig, Player, Round as RoundData
 from models import AudioRecording
@@ -16,6 +17,8 @@ from models.database import (
 from services.state_store import StateStore
 from services.database_service import DatabaseService
 from config import settings
+
+logger = logging.getLogger(__name__)
 
 
 class DatabaseStateStore(StateStore):
@@ -119,15 +122,25 @@ class DatabaseStateStore(StateStore):
             
             # Load rounds
             rounds = []
+            current_round = None
             for db_round in sorted(chat_session.rounds, key=lambda r: r.round_number):
                 round_data = RoundData(
+                    id=db_round.id,  # Use database ID
                     phrase=db_round.prompt_text,
                     emotion_id=db_round.emotion_id,
                     speaker_id=db_round.speaker_session_id,
                     votes={},  # Will be loaded from emotion_votes
-                    audio_recording_id=None  # Will be loaded from recordings
+                    audio_recording_id=None,  # Will be loaded from recordings
+                    is_completed=False  # Assume all database rounds are completed for now
                 )
                 rounds.append(round_data)
+            
+            # Determine current_round based on room phase
+            # If room is "in_round", the last round is the current active round
+            if self._map_status_to_phase(chat_session.status) == "in_round" and rounds:
+                current_round = rounds[-1]
+                current_round.is_completed = False  # This is the active round
+                rounds = rounds[:-1]  # Remove from history since it's current
             
             # Create Room instance
             room = Room(
@@ -135,7 +148,7 @@ class DatabaseStateStore(StateStore):
                 players=players,
                 config=config,
                 phase=self._map_status_to_phase(chat_session.status),  # Map status to phase
-                current_round=rounds[-1] if rounds else None,
+                current_round=current_round,
                 round_history=rounds,
                 created_at=chat_session.created_at
             )
@@ -183,36 +196,43 @@ class DatabaseStateStore(StateStore):
                 if session_id not in room.players:
                     await session.delete(participant)
             
-            # Update rounds (only add new ones)
+            # Update rounds (both current_round and round_history)
             existing_rounds = await session.execute(
                 select(Round).where(Round.chat_session_id == room.id)
             )
-            existing_round_numbers = {r.round_number for r in existing_rounds.scalars()}
+            existing_round_ids = {r.id for r in existing_rounds.scalars()}
             
-            for round_data in room.round_history:
-                if round_data.round_number not in existing_round_numbers:
-                    # Get emotion type
+            # Handle current active round (not yet in history)
+            rounds_to_save = list(room.round_history)
+            if room.current_round and not room.current_round.is_completed:
+                # Add current round to the list to be saved
+                rounds_to_save.append(room.current_round)
+            
+            for i, round_data in enumerate(rounds_to_save):
+                if round_data.id not in existing_round_ids:
+                    # Get emotion type - use emotion_id directly
                     emotion_result = await session.execute(
-                        select(EmotionType).where(EmotionType.name_ja == round_data.emotion)
+                        select(EmotionType).where(EmotionType.id == round_data.emotion_id)
                     )
                     emotion = emotion_result.scalar_one_or_none()
                     
                     if not emotion:
                         # Create emotion type if not exists
                         emotion = EmotionType(
-                            id=round_data.emotion.lower(),
-                            name_ja=round_data.emotion,
-                            name_en=round_data.emotion.lower()
+                            id=round_data.emotion_id,
+                            name_ja=round_data.emotion_id,  # Fallback
+                            name_en=round_data.emotion_id
                         )
                         session.add(emotion)
                         await session.flush()
                     
                     db_round = Round(
+                        id=round_data.id,  # Use the same ID
                         chat_session_id=room.id,
                         speaker_session_id=round_data.speaker_id,
                         prompt_text=round_data.phrase,
-                        emotion_id=emotion.id,
-                        round_number=round_data.round_number
+                        emotion_id=round_data.emotion_id,
+                        round_number=i + 1  # Calculate based on order
                     )
                     session.add(db_round)
             
@@ -246,21 +266,27 @@ class DatabaseStateStore(StateStore):
     async def save_audio_recording(self, recording: AudioRecording) -> None:
         """Save an audio recording to the database"""
         async with self.db.get_session() as session:
-            # Find the round this recording belongs to
+            # Find the round this recording belongs to using round_id directly
             round_result = await session.execute(
-                select(Round).where(
-                    Round.chat_session_id == recording.room_id,
-                    Round.round_number == recording.round_number
-                )
+                select(Round).where(Round.id == recording.round_id)
             )
             db_round = round_result.scalar_one_or_none()
             
+            # Save audio data to storage first
+            from services.storage_service import get_storage_service
+            storage_service = get_storage_service()
+            audio_url = storage_service.save_audio(
+                recording.audio_data, 
+                getattr(recording, 'session_id', 'unknown'),
+                recording.round_id
+            )
+            
             db_recording = Recording(
                 id=recording.id,
-                round_id=db_round.id if db_round else None,
-                session_id=recording.player_id,
-                audio_url=recording.file_path,
-                duration=recording.duration
+                round_id=db_round.id if db_round else recording.round_id,
+                session_id=getattr(recording, 'speaker_id', getattr(recording, 'session_id', 'unknown')),
+                audio_url=audio_url,
+                duration=getattr(recording, 'duration_seconds', None)
             )
             session.add(db_recording)
             await session.commit()
@@ -278,15 +304,18 @@ class DatabaseStateStore(StateStore):
             if not db_recording:
                 return None
             
+            # Audio data loading not implemented yet - using empty bytes
+            # TODO: Implement audio data loading from storage when needed
+            audio_data = b""
+            
             recording = AudioRecording(
                 id=db_recording.id,
-                room_id=db_recording.round.chat_session_id if db_recording.round else "",
-                player_id=db_recording.session_id,
-                round_number=db_recording.round.round_number if db_recording.round else 0,
-                emotion="",  # Not stored in recording
-                file_path=db_recording.audio_url,
-                created_at=db_recording.created_at,
-                duration=db_recording.duration or 0
+                round_id=db_recording.round_id,
+                speaker_id=db_recording.session_id,
+                audio_data=audio_data,
+                emotion_acted="",  # Would need to be retrieved from round
+                duration_seconds=db_recording.duration,
+                created_at=db_recording.created_at
             )
             
             return recording
@@ -298,3 +327,18 @@ class DatabaseStateStore(StateStore):
                 delete(Recording).where(Recording.id == recording_id)
             )
             await session.commit()
+    
+    async def save_score(self, room_id: str, round_id: str, player_id: str, points: int, score_type: str) -> None:
+        """Save a score entry to the database"""
+        from models.database import Score
+        
+        async with self.db.get_session() as session:
+            score = Score(
+                session_id=player_id,
+                round_id=round_id,
+                points=points,
+                score_type=score_type
+            )
+            session.add(score)
+            await session.commit()
+            logger.info(f"Saved score: player={player_id}, round={round_id}, points={points}, type={score_type}")

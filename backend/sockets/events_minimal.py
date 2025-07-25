@@ -352,9 +352,10 @@ class GameSocketEvents:
                 
                 # Save audio recording
                 recording = AudioRecording(
-                    session_id=room_id,  # ルームIDをセッションIDとして使用
                     round_id=room.current_round.id,
-                    audio_data=audio_bytes
+                    speaker_id=player_id,
+                    audio_data=audio_bytes,
+                    emotion_acted=room.current_round.emotion_id
                 )
                 
                 state_store = get_state_store()
@@ -521,6 +522,9 @@ class GameSocketEvents:
             # Speaker gets points based on how many guessed correctly
             speaker.score += correct_votes
             
+            # Save individual scores to database
+            await self._save_round_scores(room, round_data, correct_votes)
+            
             # Check if game should end (reached max cycles) - BEFORE completing round
             # One cycle = all players speak once
             completed_rounds = len(room.round_history) + 1  # +1 for current round being completed
@@ -594,7 +598,34 @@ class GameSocketEvents:
             
         except Exception as e:
             logger.error(f"Error completing round: {e}", exc_info=True)
-        
+    
+    async def _save_round_scores(self, room, round_data, correct_votes):
+        """Save individual round scores to database"""
+        try:
+            # Save listener scores
+            for player_id, voted_emotion in round_data.votes.items():
+                if voted_emotion == round_data.emotion_id:  # Correct vote
+                    await self._save_score(room.id, round_data.id, player_id, 1, 'listener')
+                else:  # Incorrect vote
+                    await self._save_score(room.id, round_data.id, player_id, 0, 'listener')
+            
+            # Save speaker score
+            await self._save_score(room.id, round_data.id, round_data.speaker_id, correct_votes, 'speaker')
+            
+            logger.info(f"Saved scores for round {round_data.id}: {len(round_data.votes)} listeners, 1 speaker")
+            
+        except Exception as e:
+            logger.error(f"Error saving round scores: {e}", exc_info=True)
+    
+    async def _save_score(self, room_id, round_id, player_id, points, score_type):
+        """Save a single score entry to database"""
+        try:
+            state_store = get_state_store()
+            if hasattr(state_store, 'save_score'):
+                await state_store.save_score(room_id, round_id, player_id, points, score_type)
+        except Exception as e:
+            logger.error(f"Error saving score for player {player_id}: {e}", exc_info=True)
+    
         @self.sio.event
         async def restart_game(sid, data):
             """Restart the game (host only)"""

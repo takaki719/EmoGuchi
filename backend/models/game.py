@@ -160,8 +160,8 @@ class ErrorResponse(BaseModel):
     code: str
     message: str
 
-class AudioRecording(BaseModel):
-    """Audio recording data model for state store"""
+class AudioRecordingV2(BaseModel):
+    """Audio recording data model for state store (deprecated)"""
     id: str = Field(default_factory=lambda: str(uuid.uuid4()))
     session_id: str
     round_id: str

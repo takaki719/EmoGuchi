@@ -179,9 +179,7 @@ async def options_handler(path: str):
     """Handle preflight OPTIONS requests"""
     return {}
 
-@app.get("/socket.io/")
-async def socket_info():
-    return {"message": "Socket.IO endpoint"}
+# Removed conflicting Socket.IO route that was intercepting Socket.IO connections
 
 # 静的ファイル配信（ローカルストレージ用）
 if settings.STORAGE_TYPE == "local":

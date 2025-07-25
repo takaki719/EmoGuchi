@@ -36,6 +36,10 @@ class StateStore(ABC):
     @abstractmethod
     async def delete_audio_recording(self, recording_id: str) -> None:
         pass
+    
+    @abstractmethod
+    async def save_score(self, room_id: str, round_id: str, player_id: str, points: int, score_type: str) -> None:
+        pass
 
 class MemoryStateStore(StateStore):
     """In-memory implementation of state store"""
@@ -67,6 +71,12 @@ class MemoryStateStore(StateStore):
     
     async def delete_audio_recording(self, recording_id: str) -> None:
         self._audio_recordings.pop(recording_id, None)
+    
+    async def save_score(self, room_id: str, round_id: str, player_id: str, points: int, score_type: str) -> None:
+        """Save a score entry (memory store - no persistent storage)"""
+        # In memory store, scores are already stored in Player objects
+        # This method exists for compatibility with database store
+        pass
 
 # Global instance
 state_store = MemoryStateStore()

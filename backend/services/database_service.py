@@ -129,6 +129,7 @@ class DatabaseService:
     
     async def save_solo_session(self, session_data: Dict[str, Any]) -> str:
         """ソロセッションデータ保存"""
+        logger.info(f"🔍 Starting save_solo_session with data: {session_data}")
         async with self.session_maker() as session:
             try:
                 # ソロセッション作成
@@ -275,6 +276,8 @@ async def get_database_service() -> DatabaseService:
     """データベースサービスのシングルトンインスタンス取得"""
     global _db_service
     if _db_service is None:
+        logger.info("🔧 Initializing database service for the first time")
         _db_service = DatabaseService()
         await _db_service.initialize()
+        logger.info("✅ Database service initialized successfully")
     return _db_service
