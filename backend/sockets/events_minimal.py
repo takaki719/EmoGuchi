@@ -549,6 +549,13 @@ class GameSocketEvents:
                 state_store = get_state_store()
                 await state_store.update_room(room)
                 
+                # Send vote confirmation to the voter
+                await events_instance.sio.emit('vote_confirmed', {
+                    'roundId': round_id,
+                    'emotionId': emotion_id,
+                    'message': 'Vote recorded successfully'
+                }, room=sid)
+                
                 # Check if all eligible voters have voted
                 # Use the snapshot of eligible voters from round start (ラウンド固定制)
                 
