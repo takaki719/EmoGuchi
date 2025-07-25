@@ -556,70 +556,32 @@ class GameSocketEvents:
                     'message': 'Vote recorded successfully'
                 }, room=sid)
                 
-                # Check if all eligible voters have voted
-                # Use the snapshot of eligible voters from round start (ラウンド固定制)
+                # Simplified vote completion logic - count all currently connected eligible voters
+                current_connected_eligible = [
+                    voter_id for voter_id in room.current_round.eligible_voters
+                    if voter_id in room.players and room.players[voter_id].is_connected
+                ]
                 
-                # Count votes from eligible voters who either:
-                # 1. Already voted, OR
-                # 2. Are currently disconnected (can't vote anymore)
-                eligible_who_voted_or_disconnected = 0
-                
-                for voter_id in room.current_round.eligible_voters:
-                    if voter_id in room.current_round.votes:
-                        # Already voted
-                        eligible_who_voted_or_disconnected += 1
-                    elif voter_id not in room.players or not room.players[voter_id].is_connected:
-                        # Disconnected (treated as abstention)
-                        eligible_who_voted_or_disconnected += 1
-                
-                total_eligible = len(room.current_round.eligible_voters)
                 votes_received = len(room.current_round.votes)
+                total_eligible = len(room.current_round.eligible_voters)
+                connected_eligible = len(current_connected_eligible)
                 
-                logger.info(f"🗳️ Vote progress: {eligible_who_voted_or_disconnected}/{total_eligible} completed in room {room_id}")
-                logger.info(f"🗳️ Votes received: {votes_received}")
-                logger.info(f"🗳️ Original eligible voters: {room.current_round.eligible_voters}")
-                speaker = room.players.get(room.current_round.speaker_id)
-                logger.info(f"🗳️ Speaker ID: {room.current_round.speaker_id}, Speaker name: {speaker.name if speaker else 'Not found'}")
-                logger.info(f"🗳️ Votes: {room.current_round.votes}")
-                logger.info(f"🗳️ Vote player IDs: {list(room.current_round.votes.keys())}")
-                logger.info(f"🗳️ All player IDs: {[p.id for p in room.players.values()]}")
+                logger.info(f"🗳️ Vote completion check:")
+                logger.info(f"🗳️   Original eligible voters: {room.current_round.eligible_voters}")
+                logger.info(f"🗳️   Currently connected eligible: {current_connected_eligible}")
+                logger.info(f"🗳️   Votes received: {votes_received}/{connected_eligible} connected ({total_eligible} original)")
+                logger.info(f"🗳️   Actual votes: {room.current_round.votes}")
                 
-                # Detailed breakdown for debugging
-                for voter_id in room.current_round.eligible_voters:
-                    has_voted = voter_id in room.current_round.votes
-                    is_connected = voter_id in room.players and room.players[voter_id].is_connected
-                    logger.info(f"🗳️ Voter {voter_id}: voted={has_voted}, connected={is_connected}")
-                    if voter_id in room.players:
-                        logger.info(f"🗳️   Player name: {room.players[voter_id].name}")
-                    else:
-                        logger.info(f"🗳️   Player not found in current players")
-                
-                # Complete round when all eligible voters have either voted or disconnected
-                should_complete = eligible_who_voted_or_disconnected >= total_eligible and total_eligible > 0
-                logger.info(f"🗳️ Round completion check: eligible_who_voted_or_disconnected={eligible_who_voted_or_disconnected}, total_eligible={total_eligible}, should_complete={should_complete}")
+                # Complete round when all currently connected eligible voters have voted
+                should_complete = votes_received >= connected_eligible and connected_eligible > 0
+                logger.info(f"🗳️ Should complete: {should_complete} (votes_received={votes_received} >= connected_eligible={connected_eligible})")
                 
                 if should_complete:
-                    logger.info(f"🎉 All eligible voters accounted for, completing round in room {room_id}")
+                    logger.info(f"🎉 All connected eligible voters have voted, completing round in room {room_id}")
                     await events_instance._complete_round(room)
                 else:
-                    remaining = total_eligible - eligible_who_voted_or_disconnected
-                    logger.info(f"⏳ Waiting for {remaining} more eligible voters in room {room_id}")
-                    
-                    # Emergency completion check - if all current connected players have voted
-                    current_connected_voters = [
-                        p_id for p_id in room.current_round.eligible_voters 
-                        if p_id in room.players and room.players[p_id].is_connected
-                    ]
-                    voted_connected = [
-                        p_id for p_id in current_connected_voters 
-                        if p_id in room.current_round.votes
-                    ]
-                    
-                    logger.info(f"🚨 Emergency check: current_connected_voters={len(current_connected_voters)}, voted_connected={len(voted_connected)}")
-                    
-                    if len(current_connected_voters) > 0 and len(voted_connected) >= len(current_connected_voters):
-                        logger.warning(f"🚨 Emergency completion: All currently connected eligible voters have voted")
-                        await events_instance._complete_round(room)
+                    remaining = connected_eligible - votes_received
+                    logger.info(f"⏳ Waiting for {remaining} more votes from connected eligible voters in room {room_id}")
                 
                 logger.info(f"Vote submitted by player {player_id} in room {room_id}")
                 

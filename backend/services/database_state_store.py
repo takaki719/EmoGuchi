@@ -154,12 +154,22 @@ class DatabaseStateStore(StateStore):
                     # If offset-naive, assume it's UTC
                     voting_started_at = voting_started_at.replace(tzinfo=timezone.utc)
                 
+                # Load votes from EmotionVote table
+                from models.database import EmotionVote
+                vote_results = await session.execute(
+                    select(EmotionVote)
+                    .where(EmotionVote.round_id == db_round.id)
+                )
+                votes = {}
+                for vote in vote_results.scalars():
+                    votes[vote.session_id] = vote.emotion_id
+                
                 round_data = RoundData(
                     id=db_round.id,  # Use database ID
                     phrase=db_round.prompt_text,
                     emotion_id=db_round.emotion_id,
                     speaker_id=db_round.speaker_session_id,
-                    votes={},  # Will be loaded from emotion_votes
+                    votes=votes,  # Loaded from emotion_votes
                     audio_recording_id=None,  # Will be loaded from recordings
                     is_completed=False,  # Assume all database rounds are completed for now
                     eligible_voters=eligible_voters,
@@ -309,6 +319,25 @@ class DatabaseStateStore(StateStore):
                         existing_round.voting_started_at = round_data.voting_started_at
                         existing_round.vote_timeout_seconds = round_data.vote_timeout_seconds
                         logger.info(f"⏰ Updated existing round {round_data.id} with voting_started_at: {round_data.voting_started_at}")
+                
+                # Save votes for this round
+                if round_data.votes:
+                    # Delete existing votes for this round
+                    from models.database import EmotionVote
+                    await session.execute(
+                        delete(EmotionVote).where(EmotionVote.round_id == round_data.id)
+                    )
+                    
+                    # Add new votes
+                    for player_id, emotion_id in round_data.votes.items():
+                        vote = EmotionVote(
+                            round_id=round_data.id,
+                            session_id=player_id,
+                            emotion_id=emotion_id
+                        )
+                        session.add(vote)
+                    
+                    logger.info(f"💾 Saved {len(round_data.votes)} votes for round {round_data.id}")
             
             await session.commit()
     
