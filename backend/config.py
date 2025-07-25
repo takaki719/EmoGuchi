@@ -100,7 +100,7 @@ class Settings:
                         query_params['ssl'] = ['false']
                 
                 # 他の互換性のないパラメータも削除
-                params_to_remove = ['sslcert', 'sslkey', 'sslrootcert', 'sslcrl']
+                params_to_remove = ['sslcert', 'sslkey', 'sslrootcert', 'sslcrl', 'channel_binding']
                 for param in params_to_remove:
                     if param in query_params:
                         del query_params[param]
@@ -112,6 +112,7 @@ class Settings:
             except Exception as e:
                 # URLパースに失敗した場合は基本的な置換のみ実行
                 url = re.sub(r'[&?]sslmode=[^&]*', '', url)
+                url = re.sub(r'[&?]channel_binding=[^&]*', '', url)
                 if 'sslmode=require' in env_database_url:
                     url += ('&' if '?' in url else '?') + 'ssl=true'
             
