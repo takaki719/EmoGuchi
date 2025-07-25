@@ -952,13 +952,7 @@ class GameSocketEvents:
                 if elapsed.total_seconds() >= timeout_seconds:
                     logger.warning(f"⏰ Vote timeout in room {room_id}! Forcing round completion after {elapsed.total_seconds():.1f}s")
                     
-                    # Emit timeout notification to all players
-                    await self.sio.emit('vote_timeout', {
-                        'message': 'Voting time is up! Round will complete with current votes.',
-                        'timeout_seconds': timeout_seconds
-                    }, room=room_id)
-                    
-                    # Force complete the round
+                    # Force complete the round silently (no timeout notification)
                     await self._complete_round(room)
                 else:
                     logger.info(f"⏰ Vote timeout check: Still within time limit in room {room_id}")
