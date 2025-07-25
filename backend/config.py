@@ -19,7 +19,8 @@ class Settings:
         "https://emoguchi.vercel.app",
         "https://emoguchi.pages.dev",
         "https://*.emoguchi.pages.dev",
-        "https://503fc1a1.emoguchi.pages.dev"  # プレビューデプロイ用
+        "https://503fc1a1.emoguchi.pages.dev",  # プレビューデプロイ用
+        "https://emoguchi.pages.dev"
     ]
     
     # API settings
