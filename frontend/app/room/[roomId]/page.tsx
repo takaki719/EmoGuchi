@@ -849,7 +849,7 @@ export default function RoomPage({ params }: { params: { roomId: string } }) {
                       <p className="text-sm">
                         <span className="text-gray-600">{t.game.correctAnswerLabel} </span>
                         <span className="font-medium">
-                          {lastResult.correct_emotion}
+                          {getEmotionNameById(lastResult.correctEmotionId || '')}
                         </span>
                       </p>
                     </div>
@@ -874,7 +874,7 @@ export default function RoomPage({ params }: { params: { roomId: string } }) {
                     {t.game.youWereSpeaker}
                   </p>
                   <p className="text-xl font-bold">
-                    {t.game.correctAnswerLabel} {lastResult.correct_emotion}
+                    {t.game.correctAnswerLabel} {getEmotionNameById(lastResult.correctEmotionId || '')}
                   </p>
                 </div>
               )}
