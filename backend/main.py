@@ -131,14 +131,45 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# Create Socket.IO server
-sio = socketio.AsyncServer(
-    async_mode="asgi",
-    cors_allowed_origins="*",  # Allow all origins for Socket.IO
-    logger=True,
-    engineio_logger=True,
-    max_http_buffer_size=10 * 1024 * 1024  # 10MB for audio data
-)
+# Create Socket.IO server with optional Redis adapter for scaling
+def create_socketio_server():
+    """Create Socket.IO server with Redis adapter if configured"""
+    # Check if Redis is configured for scaling
+    if settings.REDIS_URL or (settings.REDIS_HOST and settings.REDIS_PORT):
+        try:
+            import socketio
+            
+            # Try to create Redis manager for multi-instance scaling
+            if settings.REDIS_URL:
+                redis_url = settings.REDIS_URL
+            else:
+                redis_url = f"redis://{settings.REDIS_HOST}:{settings.REDIS_PORT}/{settings.REDIS_DB}"
+            
+            mgr = socketio.AsyncRedisManager(redis_url)
+            logger.info(f"🔗 Socket.IO Redis adapter enabled: {redis_url}")
+            
+            return socketio.AsyncServer(
+                async_mode="asgi",
+                cors_allowed_origins="*",
+                logger=True,
+                engineio_logger=True,
+                max_http_buffer_size=10 * 1024 * 1024,  # 10MB for audio data
+                client_manager=mgr
+            )
+        except Exception as e:
+            logger.warning(f"⚠️ Redis adapter failed, using single-instance mode: {e}")
+    
+    # Fallback to single-instance mode
+    logger.info("💾 Socket.IO single-instance mode (no Redis)")
+    return socketio.AsyncServer(
+        async_mode="asgi",
+        cors_allowed_origins="*",  # Allow all origins for Socket.IO
+        logger=True,
+        engineio_logger=True,
+        max_http_buffer_size=10 * 1024 * 1024  # 10MB for audio data
+    )
+
+sio = create_socketio_server()
 
 
 # Setup Socket.IO events

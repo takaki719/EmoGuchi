@@ -65,6 +65,12 @@ class Settings:
     POSTGRES_USER: str = os.getenv("POSTGRES_USER", "emoguchi")
     POSTGRES_PASSWORD: str = os.getenv("POSTGRES_PASSWORD", "")
     
+    # Redis settings (for Socket.IO scaling)
+    REDIS_URL: str = os.getenv("REDIS_URL", "")  # Redis connection URL
+    REDIS_HOST: str = os.getenv("REDIS_HOST", "localhost")
+    REDIS_PORT: int = int(os.getenv("REDIS_PORT", "6379"))
+    REDIS_DB: int = int(os.getenv("REDIS_DB", "0"))
+    
     @property
     def DATABASE_URL(self) -> str:
         """データベースURL生成（環境に応じて自動切り替え）"""

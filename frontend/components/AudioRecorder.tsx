@@ -46,7 +46,18 @@ export const AudioRecorder: React.FC<AudioRecorderProps> = ({
       
       {error && (
         <div className="mb-4 p-3 bg-red-100 border border-red-400 text-red-700 rounded">
-          {error}
+          <div className="flex justify-between items-center">
+            <span>{error}</span>
+            <button
+              onClick={() => {
+                clearRecording();
+                // Clear error and reset state
+              }}
+              className="ml-2 px-2 py-1 bg-red-500 hover:bg-red-600 text-white text-xs rounded transition-colors"
+            >
+              再試行
+            </button>
+          </div>
         </div>
       )}
 

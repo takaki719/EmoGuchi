@@ -22,20 +22,44 @@ class SocketClient {
       autoConnect: true,
       timeout: 20000,
       forceNew: true,
+      // Enhanced retry configuration
+      reconnection: true,
+      reconnectionAttempts: 10,
+      reconnectionDelay: 1000,
+      reconnectionDelayMax: 5000,
+      // Upgrade handling
+      upgrade: true,
+      forceBase64: false,
     });
 
     console.log('🔌 Socket created:', this.socket);
 
     this.socket.on('connect', () => {
-      console.log('Connected to server');
+      console.log('✅ Connected to server');
     });
 
-    this.socket.on('disconnect', () => {
-      console.log('Disconnected from server');
+    this.socket.on('disconnect', (reason: string) => {
+      console.log('❌ Disconnected from server:', reason);
     });
 
     this.socket.on('connect_error', (error: any) => {
-      console.error('Connection error:', error);
+      console.error('🔥 Connection error:', error);
+    });
+
+    this.socket.on('reconnect', (attemptNumber: number) => {
+      console.log('🔄 Reconnected to server after', attemptNumber, 'attempts');
+    });
+
+    this.socket.on('reconnect_attempt', (attemptNumber: number) => {
+      console.log('🔄 Reconnection attempt', attemptNumber);
+    });
+
+    this.socket.on('reconnect_error', (error: any) => {
+      console.error('🔥 Reconnection error:', error);
+    });
+
+    this.socket.on('reconnect_failed', () => {
+      console.error('❌ Reconnection failed after all attempts');
     });
 
     return this.socket as Socket<SocketEvents>;

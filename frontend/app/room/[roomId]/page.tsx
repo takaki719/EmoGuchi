@@ -39,7 +39,8 @@ export default function RoomPage({ params }: { params: { roomId: string } }) {
     setGameComplete,
     setLastResult,
     setAudioRecording,
-    setAudioUrl
+    setAudioUrl,
+    setError
   } = useGameStore();
 
   const [selectedEmotion, setSelectedEmotion] = useState('');
@@ -145,9 +146,32 @@ export default function RoomPage({ params }: { params: { roomId: string } }) {
     console.log('🎤 handleAudioRecording called with blob:', audioBlob);
     console.log('Blob size:', audioBlob.size, 'type:', audioBlob.type);
     
-    setAudioRecording(audioBlob);
-    sendAudio(audioBlob);
-    console.log('📤 Audio sent to server via sendAudio function');
+    // Validate audio blob
+    if (!audioBlob || audioBlob.size === 0) {
+      console.error('❌ Invalid audio blob received');
+      setError('録音データが無効です. 再試行してください.');
+      return;
+    }
+    
+    // Check blob size (should be reasonable)
+    if (audioBlob.size < 1000) { // Less than 1KB might be too small
+      console.warn('⚠️ Audio blob seems very small:', audioBlob.size, 'bytes');
+    }
+    
+    if (audioBlob.size > 50 * 1024 * 1024) { // More than 50MB might be too large
+      console.warn('⚠️ Audio blob seems very large:', audioBlob.size, 'bytes');
+      setError('録音データが大きすぎます. 短めの録音をお試しください.');
+      return;
+    }
+    
+    try {
+      setAudioRecording(audioBlob);
+      sendAudio(audioBlob);
+      console.log('📤 Audio sent to server via sendAudio function');
+    } catch (error) {
+      console.error('❌ Error sending audio:', error);
+      setError('音声送信でエラーが発生しました. 再試行してください.');
+    }
   };
 
   // Helper function to get emotion name by ID for wheel mode

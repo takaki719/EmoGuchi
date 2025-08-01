@@ -13,6 +13,8 @@ primary_region = 'nrt'
   PORT = '8000'
   PYTHONUNBUFFERED = '1'
   STORAGE_TYPE = 's3'
+  # Socket.IO specific settings
+  SOCKETIO_SINGLE_INSTANCE = 'true'
 
 [http_service]
   internal_port = 8000
@@ -20,13 +22,29 @@ primary_region = 'nrt'
   auto_stop_machines = 'stop'
   auto_start_machines = true
   min_machines_running = 0
+  # Enable concurrency limits for Socket.IO compatibility
+  concurrency.type = "connections"
+  concurrency.hard_limit = 1000
+  concurrency.soft_limit = 800
+
+  # Socket.IO requires longer timeouts for persistent connections
+  [http_service.http_options]
+    h2_backend = true
+    idle_timeout = "60s"
+    read_timeout = "60s"
+    write_timeout = "60s"
 
   [[http_service.checks]]
     interval = '30s'
-    timeout = '10s'
-    grace_period = '10s'
+    timeout = '15s'
+    grace_period = '30s'
     method = 'GET'
     path = '/api/v1/solo/health'
+
+# Scaling configuration - limit to single instance for Socket.IO compatibility
+[scaling]
+  min_machines_running = 0
+  max_machines_running = 1
 
 [[vm]]
   cpu_kind = 'shared'
