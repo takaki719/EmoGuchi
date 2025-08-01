@@ -47,11 +47,18 @@ export const translations = {
       gameMode: '感情モード',
       basicMode: '基本感情 (4択)',
       advancedMode: '応用感情 (8択)',
+      wheelMode: '感情の輪',
       speakerOrder: '発言順',
       sequential: '順番',
       random: 'ランダム',
       maxRounds: 'ラウンド数',
-      rounds: '周'
+      maxCycles: '最大サイクル数',
+      cycles: 'サイクル',
+      cycle: 'サイクル',
+      rounds: '周',
+      hardMode: '高難易度モード',
+      hardModeOff: 'OFF（通常）',
+      hardModeOn: 'ON（高難易度）'
     },
     game: {
       waitingForHost: 'ホストがゲームを開始するのを待っています...',
@@ -112,6 +119,16 @@ export const translations = {
       disgust: '嫌悪',
       trust: '信頼',
       anticipation: '期待'
+    },
+    audio: {
+      recording: '音声録音',
+      startRecording: '録音開始',
+      stopRecording: '録音停止',
+      recordingInProgress: '録音中...',
+      recordingComplete: '録音完了',
+      send: '送信',
+      retry: '再録音',
+      retryButton: '再試行'
     }
   },
   en: {
@@ -162,11 +179,18 @@ export const translations = {
       gameMode: 'Emotion Mode',
       basicMode: 'Basic Emotions (4 choices)',
       advancedMode: 'Advanced Emotions (8 choices)',
+      wheelMode: 'Emotion Wheel',
       speakerOrder: 'Speaker Order',
       sequential: 'Sequential',
       random: 'Random',
       maxRounds: 'Number of Rounds',
-      rounds: 'rounds'
+      maxCycles: 'Max Cycles',
+      cycles: 'cycles',
+      cycle: 'cycle',
+      rounds: 'rounds',
+      hardMode: 'Hard Mode',
+      hardModeOff: 'OFF (Normal)',
+      hardModeOn: 'ON (Hard)'
     },
     game: {
       waitingForHost: 'Waiting for host to start the game...',
@@ -227,6 +251,16 @@ export const translations = {
       disgust: 'disgust',
       trust: 'trust',
       anticipation: 'anticipation'
+    },
+    audio: {
+      recording: 'Audio Recording',
+      startRecording: 'Start Recording',
+      stopRecording: 'Stop Recording',
+      recordingInProgress: 'Recording...',
+      recordingComplete: 'Recording Complete',
+      send: 'Send',
+      retry: 'Re-record',
+      retryButton: 'Retry'
     }
   }
 } as const;

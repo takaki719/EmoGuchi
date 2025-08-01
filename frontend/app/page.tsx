@@ -17,6 +17,8 @@ export default function Home() {
   const [isCreating, setIsCreating] = useState(false);
   const [nameError, setNameError] = useState('');
   const [roomIdError, setRoomIdError] = useState('');
+  const [gameMode, setGameMode] = useState<'basic' | 'advanced' | 'wheel'>('basic');
+  const [maxRounds, setMaxRounds] = useState(1);
   const router = useRouter();
   const { locale } = useLocaleStore();
   const t = translations[locale];
@@ -55,11 +57,19 @@ export default function Home() {
     
     setIsCreating(true);
     try {
+      // Determine vote_type based on game mode
+      let voteType = '4choice';
+      if (gameMode === 'advanced') {
+        voteType = '8choice';
+      } else if (gameMode === 'wheel') {
+        voteType = 'wheel';
+      }
+
       const requestBody: any = {
-        mode: 'basic',
-        vote_type: '4choice',
+        mode: gameMode,
+        vote_type: voteType,
         speaker_order: 'sequential',
-        max_rounds: 1,
+        max_rounds: maxRounds,
       };
       
       // Add custom room ID if provided
@@ -168,6 +178,79 @@ export default function Home() {
             </p>
           </div>
 
+          {/* Game Settings */}
+          <div className="mb-6 space-y-4">
+            {/* Game Mode Selection */}
+            <div>
+              <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">
+                {t.home.gameMode}
+              </label>
+              <div className="grid grid-cols-1 gap-2">
+                <button
+                  type="button"
+                  onClick={() => setGameMode('basic')}
+                  className={`p-3 rounded-lg border-2 transition-all duration-200 text-left ${
+                    gameMode === 'basic'
+                      ? 'border-blue-500 bg-blue-50 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300'
+                      : 'border-gray-300 dark:border-gray-600 hover:border-gray-400 dark:hover:border-gray-500 bg-white dark:bg-slate-700 text-gray-900 dark:text-white'
+                  }`}
+                >
+                  <div className="font-medium">{t.home.basicMode}</div>
+                  <div className="text-xs text-gray-600 dark:text-gray-400 mt-1">
+                    {locale === 'ja' ? '4つの基本感情から選択' : 'Choose from 4 basic emotions'}
+                  </div>
+                </button>
+                
+                <button
+                  type="button"
+                  onClick={() => setGameMode('advanced')}
+                  className={`p-3 rounded-lg border-2 transition-all duration-200 text-left ${
+                    gameMode === 'advanced'
+                      ? 'border-blue-500 bg-blue-50 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300'
+                      : 'border-gray-300 dark:border-gray-600 hover:border-gray-400 dark:hover:border-gray-500 bg-white dark:bg-slate-700 text-gray-900 dark:text-white'
+                  }`}
+                >
+                  <div className="font-medium">{t.home.advancedMode}</div>
+                  <div className="text-xs text-gray-600 dark:text-gray-400 mt-1">
+                    {locale === 'ja' ? '8つの基本感情から選択' : 'Choose from 8 basic emotions'}
+                  </div>
+                </button>
+                
+                <button
+                  type="button"
+                  onClick={() => setGameMode('wheel')}
+                  className={`p-3 rounded-lg border-2 transition-all duration-200 text-left ${
+                    gameMode === 'wheel'
+                      ? 'border-blue-500 bg-blue-50 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300'
+                      : 'border-gray-300 dark:border-gray-600 hover:border-gray-400 dark:hover:border-gray-500 bg-white dark:bg-slate-700 text-gray-900 dark:text-white'
+                  }`}
+                >
+                  <div className="font-medium">{t.home.wheelMode}</div>
+                  <div className="text-xs text-gray-600 dark:text-gray-400 mt-1">
+                    {locale === 'ja' ? '24の感情の輪から選択' : 'Choose from 24-emotion wheel'}
+                  </div>
+                </button>
+              </div>
+            </div>
+
+            {/* Max Rounds Selection */}
+            <div>
+              <label htmlFor="maxRounds" className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">
+                {t.home.maxCycles}
+              </label>
+              <select
+                id="maxRounds"
+                value={maxRounds}
+                onChange={(e) => setMaxRounds(parseInt(e.target.value))}
+                className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 bg-white dark:bg-slate-700 text-gray-900 dark:text-white rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 dark:focus:ring-blue-400 focus:border-transparent transition-all duration-200 hover:border-gray-400 dark:hover:border-gray-500"
+              >
+                <option value={1}>1 {t.home.cycle}</option>
+                <option value={2}>2 {t.home.cycles}</option>
+                <option value={3}>3 {t.home.cycles}</option>
+                <option value={5}>5 {t.home.cycles}</option>
+              </select>
+            </div>
+          </div>
           
           {/* Action Buttons */}
           <div className="space-y-4">

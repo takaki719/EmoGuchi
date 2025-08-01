@@ -148,9 +148,9 @@ class GameSocketEvents:
                     choice_data = []
                     if room.config.vote_type != "wheel":
                         if room.config.vote_type == "8choice":
-                            voting_choices = get_emotion_choices_for_voting(room.config.mode, room.current_round.emotion_id, 8)
+                            voting_choices = get_emotion_choices_for_voting(room.config.mode, room.current_round.emotion_id, 8, room.config.vote_type)
                         else:
-                            voting_choices = get_emotion_choices_for_voting(room.config.mode, room.current_round.emotion_id, 4)
+                            voting_choices = get_emotion_choices_for_voting(room.config.mode, room.current_round.emotion_id, 4, room.config.vote_type)
                         
                         choice_data = [{"id": choice.id, "name": choice.name_ja} for choice in voting_choices]
                     
@@ -257,7 +257,7 @@ class GameSocketEvents:
                 
                 # Generate phrase and emotion with LLM
                 from services.llm_service import llm_service
-                phrase, emotion_id = await llm_service.generate_phrase_with_emotion(room.config.mode)
+                phrase, emotion_id = await llm_service.generate_phrase_with_emotion(room.config.mode, room.config.vote_type)
                 
                 # Get current speaker
                 speaker = room.get_current_speaker()
@@ -296,9 +296,9 @@ class GameSocketEvents:
                 choice_data = []
                 if room.config.vote_type != "wheel":
                     if room.config.vote_type == "8choice":
-                        voting_choices = get_emotion_choices_for_voting(room.config.mode, emotion_id, 8)
+                        voting_choices = get_emotion_choices_for_voting(room.config.mode, emotion_id, 8, room.config.vote_type)
                     else:
-                        voting_choices = get_emotion_choices_for_voting(room.config.mode, emotion_id, 4)
+                        voting_choices = get_emotion_choices_for_voting(room.config.mode, emotion_id, 4, room.config.vote_type)
                     
                     choice_data = [{"id": choice.id, "name": choice.name_ja} for choice in voting_choices]
                 

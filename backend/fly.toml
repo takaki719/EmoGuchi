@@ -30,9 +30,9 @@ primary_region = 'nrt'
   # Socket.IO requires longer timeouts for persistent connections
   [http_service.http_options]
     h2_backend = true
-    idle_timeout = "60s"
-    read_timeout = "60s"
-    write_timeout = "60s"
+    idle_timeout = 60
+    read_timeout = 60
+    write_timeout = 60
 
   [[http_service.checks]]
     interval = '30s'

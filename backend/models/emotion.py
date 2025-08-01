@@ -155,35 +155,69 @@ ADVANCED_EMOTIONS = {
     ),
 }
 
-def get_emotions_for_mode(mode: str) -> dict:
-    """Get emotions dictionary based on game mode"""
-    if mode == "advanced":
-        return ADVANCED_EMOTIONS
-    elif mode == "wheel":
+def get_emotions_for_mode(mode: str, vote_type: str = None) -> dict:
+    """Get emotions dictionary based on game mode and vote type"""
+    # Handle wheel mode
+    if mode == "wheel" or vote_type == "wheel":
         # Wheel mode uses 24 emotions from emotion_3_layer (3-layer wheel)
         from models.emotion_3_layer import get_emotions_for_3_layer_mode
         return get_emotions_for_3_layer_mode()
-    return BASIC_EMOTIONS
+    
+    # Handle choice-based modes
+    if vote_type == "4choice":
+        # 4-choice mode: only use 4 core emotions
+        four_choice_emotions = {
+            BasicEmotion.JOY: BASIC_EMOTIONS[BasicEmotion.JOY],
+            BasicEmotion.ANGER: BASIC_EMOTIONS[BasicEmotion.ANGER], 
+            BasicEmotion.SADNESS: BASIC_EMOTIONS[BasicEmotion.SADNESS],
+            BasicEmotion.SURPRISE: BASIC_EMOTIONS[BasicEmotion.SURPRISE],
+        }
+        return four_choice_emotions
+    elif vote_type == "8choice":
+        # 8-choice mode: use all 8 basic emotions
+        return BASIC_EMOTIONS
+    
+    # Fallback based on mode for backward compatibility
+    if mode == "advanced":
+        return BASIC_EMOTIONS  # Changed from ADVANCED_EMOTIONS to BASIC_EMOTIONS for 8-choice
+    elif mode == "wheel":
+        from models.emotion_3_layer import get_emotions_for_3_layer_mode
+        return get_emotions_for_3_layer_mode()
+    
+    # Default to 4-choice emotions for basic mode
+    four_choice_emotions = {
+        BasicEmotion.JOY: BASIC_EMOTIONS[BasicEmotion.JOY],
+        BasicEmotion.ANGER: BASIC_EMOTIONS[BasicEmotion.ANGER], 
+        BasicEmotion.SADNESS: BASIC_EMOTIONS[BasicEmotion.SADNESS],
+        BasicEmotion.SURPRISE: BASIC_EMOTIONS[BasicEmotion.SURPRISE],
+    }
+    return four_choice_emotions
 
-def get_emotion_choices_for_voting(mode: str, correct_emotion_id: str, choice_count: int = None) -> List[EmotionInfo]:
+def get_emotion_choices_for_voting(mode: str, correct_emotion_id: str, choice_count: int = None, vote_type: str = None) -> List[EmotionInfo]:
     """Get emotion choices for voting, including the correct one and random others"""
     import random
     
     # For wheel mode, we don't need voting choices since users select from the wheel
-    if mode == "wheel":
+    if mode == "wheel" or vote_type == "wheel":
         return []
     
-    emotions_dict = get_emotions_for_mode(mode)
+    emotions_dict = get_emotions_for_mode(mode, vote_type)
     all_emotions = list(emotions_dict.values())
     
-    # Set default choice count based on mode if not specified
+    # Set default choice count based on vote_type or mode if not specified
     if choice_count is None:
-        choice_count = 8 if mode == "advanced" else 4
+        if vote_type == "8choice":
+            choice_count = 8
+        elif vote_type == "4choice":
+            choice_count = 4
+        else:
+            # Fallback based on mode
+            choice_count = 8 if mode == "advanced" else 4
     
     # Find the correct emotion
     correct_emotion = next((e for e in all_emotions if e.id == correct_emotion_id), None)
     if not correct_emotion:
-        raise ValueError(f"Emotion {correct_emotion_id} not found in {mode} mode")
+        raise ValueError(f"Emotion {correct_emotion_id} not found in {mode} mode with vote_type {vote_type}")
     
     # Get other emotions (excluding the correct one)
     other_emotions = [e for e in all_emotions if e.id != correct_emotion_id]

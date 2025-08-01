@@ -212,7 +212,7 @@ class GameSocketEvents:
                 
                 # Generate phrase and emotion with LLM
                 from services.llm_service import llm_service
-                phrase, emotion_id = await llm_service.generate_phrase_with_emotion(room.config.mode)
+                phrase, emotion_id = await llm_service.generate_phrase_with_emotion(room.config.mode, room.config.vote_type)
                 
                 # Get current speaker
                 logger.info(f"🎤 START_ROUND: room.current_speaker_index BEFORE get_speaker_order = {room.current_speaker_index}")
@@ -270,10 +270,10 @@ class GameSocketEvents:
                 if room.config.vote_type != "wheel":
                     if room.config.vote_type == "8choice":
                         logger.info(f"🎯 Using 8-choice voting")
-                        voting_choices = get_emotion_choices_for_voting(room.config.mode, emotion_id, 8)
+                        voting_choices = get_emotion_choices_for_voting(room.config.mode, emotion_id, 8, room.config.vote_type)
                     else:
                         logger.info(f"🎯 Using 4-choice voting (vote_type: {room.config.vote_type})")
-                        voting_choices = get_emotion_choices_for_voting(room.config.mode, emotion_id, 4)
+                        voting_choices = get_emotion_choices_for_voting(room.config.mode, emotion_id, 4, room.config.vote_type)
                     
                     choice_data = [{"id": choice.id, "name": choice.name_ja} for choice in voting_choices]
                     logger.info(f"🎯 Generated {len(choice_data)} voting choices: {[c['name'] for c in choice_data]}")

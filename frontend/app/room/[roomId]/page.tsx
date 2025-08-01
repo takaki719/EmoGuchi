@@ -414,20 +414,20 @@ export default function RoomPage({ params }: { params: { roomId: string } }) {
                         <span className="text-gray-600">{t.home.gameMode}:</span>
                         <span className="ml-2">
                           {roomState.config.mode === 'basic' ? t.home.basicMode : 
-                           roomState.config.mode === 'advanced' ? t.home.advancedMode : '3層感情の輪'}
+                           roomState.config.mode === 'advanced' ? t.home.advancedMode : t.home.wheelMode}
                         </span>
                       </div>
                       <div>
-                        <span className="text-gray-600">最大サイクル数:</span>
-                        <span className="ml-2">{roomState.config.max_rounds}サイクル</span>
+                        <span className="text-gray-600">{t.home.maxCycles}:</span>
+                        <span className="ml-2">{roomState.config.max_rounds}{t.home.cycle}</span>
                       </div>
                       <div>
                         <span className="text-gray-600">{t.home.speakerOrder}:</span>
                         <span className="ml-2">{roomState.config.speaker_order === 'sequential' ? t.home.sequential : t.home.random}</span>
                       </div>
                       <div>
-                        <span className="text-gray-600">高難易度モード:</span>
-                        <span className="ml-2">{roomState.config.hard_mode ? 'ON' : 'OFF'}</span>
+                        <span className="text-gray-600">{t.home.hardMode}:</span>
+                        <span className="ml-2">{roomState.config.hard_mode ? t.home.hardModeOn : t.home.hardModeOff}</span>
                       </div>
                     </div>
                   </div>
@@ -484,7 +484,7 @@ export default function RoomPage({ params }: { params: { roomId: string } }) {
                                   : 'bg-white border border-gray-300 text-gray-700 hover:bg-gray-50'
                               }`}
                             >
-                              感情の輪
+                              {t.home.wheelMode}
                             </button>
                           </div>
                         </div>
@@ -492,7 +492,7 @@ export default function RoomPage({ params }: { params: { roomId: string } }) {
                         {/* Max Rounds */}
                         <div className="mb-4">
                           <label htmlFor="maxRounds" className="block text-sm font-medium text-gray-700 mb-2">
-                            最大サイクル数
+                            {t.home.maxCycles}
                           </label>
                           <select
                             id="maxRounds"
@@ -501,7 +501,7 @@ export default function RoomPage({ params }: { params: { roomId: string } }) {
                             className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                           >
                             {[1, 2, 3, 4, 5].map(num => (
-                              <option key={num} value={num}>{num}サイクル</option>
+                              <option key={num} value={num}>{num}{t.home.cycle}</option>
                             ))}
                           </select>
                         </div>
@@ -540,7 +540,7 @@ export default function RoomPage({ params }: { params: { roomId: string } }) {
                         {/* Hard Mode */}
                         <div className="mb-4">
                           <label className="block text-sm font-medium text-gray-700 mb-2">
-                            高難易度モード
+                            {t.home.hardMode}
                           </label>
                           <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-3 mb-3">
                             <p className="text-xs text-yellow-800 mb-1">
@@ -562,7 +562,7 @@ export default function RoomPage({ params }: { params: { roomId: string } }) {
                                   : 'bg-white border border-gray-300 text-gray-700 hover:bg-gray-50'
                               }`}
                             >
-                              OFF（通常）
+                              {t.home.hardModeOff}
                             </button>
                             <button
                               type="button"
@@ -573,7 +573,7 @@ export default function RoomPage({ params }: { params: { roomId: string } }) {
                                   : 'bg-white border border-gray-300 text-gray-700 hover:bg-gray-50'
                               }`}
                             >
-                              ON（高難易度）
+                              {t.home.hardModeOn}
                             </button>
                           </div>
                         </div>
@@ -676,7 +676,7 @@ export default function RoomPage({ params }: { params: { roomId: string } }) {
                             <div>
                               <h4 className="font-semibold text-orange-700 mb-1">{t.game.emotion}</h4>
                               <p className="text-lg font-medium text-orange-900 bg-white p-3 rounded border">
-                                {speakerEmotion || ''}
+                                {getEmotionDisplayName(speakerEmotion)}
                               </p>
                             </div>
                           )}

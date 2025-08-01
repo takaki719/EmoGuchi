@@ -48,12 +48,12 @@ class LLMService:
         self._initialize_client()
 
     
-    async def generate_phrase_with_emotion(self, mode: str = "basic") -> Tuple[str, str]:
+    async def generate_phrase_with_emotion(self, mode: str = "basic", vote_type: str = None) -> Tuple[str, str]:
         """Generate a phrase and select an emotion from available pool"""
         try:
             # Use the full emotion pool from emotion models for more variety
             from models.emotion import get_emotions_for_mode
-            emotions_dict = get_emotions_for_mode(mode)
+            emotions_dict = get_emotions_for_mode(mode, vote_type)
             
             # Convert to list for random selection
             available_emotions = []
@@ -162,11 +162,11 @@ class LLMService:
             traceback.print_exc()
             return random.choice(self.fallback_phrases)
     
-    async def generate_batch_phrases(self, count: int = 5, mode: str = "basic") -> List[Tuple[str, str]]:
+    async def generate_batch_phrases(self, count: int = 5, mode: str = "basic", vote_type: str = None) -> List[Tuple[str, str]]:
         """Generate multiple phrases with emotions"""
         phrases = []
         for _ in range(count):
-            phrase, emotion = await self.generate_phrase_with_emotion(mode)
+            phrase, emotion = await self.generate_phrase_with_emotion(mode, vote_type)
             phrases.append((phrase, emotion))
         return phrases
 
