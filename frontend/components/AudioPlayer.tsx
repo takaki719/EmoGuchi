@@ -11,6 +11,12 @@ export const AudioPlayer: React.FC<AudioPlayerProps> = ({ audioUrl, speakerName,
   const [isPlaying, setIsPlaying] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  // Reset error when audioUrl changes
+  React.useEffect(() => {
+    setError(null);
+    setIsPlaying(false);
+  }, [audioUrl]);
+
   const handlePlay = async () => {
     if (audioRef.current) {
       try {
@@ -40,6 +46,15 @@ export const AudioPlayer: React.FC<AudioPlayerProps> = ({ audioUrl, speakerName,
     setIsPlaying(false);
   };
 
+  const handleRetry = () => {
+    if (audioRef.current) {
+      setError(null);
+      setIsPlaying(false);
+      // Force reload the audio element
+      audioRef.current.load();
+    }
+  };
+
   return (
     <div className="bg-blue-50 p-4 rounded-lg border-2 border-blue-200">
       <div className="mb-3">
@@ -55,7 +70,15 @@ export const AudioPlayer: React.FC<AudioPlayerProps> = ({ audioUrl, speakerName,
       
       {error && (
         <div className="mb-3 p-2 bg-red-100 border border-red-400 text-red-700 rounded text-sm">
-          {error}
+          <div className="flex justify-between items-center">
+            <span>{error}</span>
+            <button
+              onClick={handleRetry}
+              className="ml-2 px-2 py-1 bg-red-500 hover:bg-red-600 text-white text-xs rounded transition-colors"
+            >
+              再試行
+            </button>
+          </div>
         </div>
       )}
       

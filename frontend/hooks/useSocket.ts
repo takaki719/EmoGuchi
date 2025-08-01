@@ -1,7 +1,7 @@
 import { useEffect, useCallback } from 'react';
 import { socketClient } from '@/socket/client';
 import { useGameStore } from '@/stores/gameStore';
-import { RoomState, Round, RoundResult } from '@/types/game';
+import { RoomState, Round, RoundResult, GameComplete } from '@/types/game';
 import { getOrCreatePlayerId, savePlayerName } from '@/utils/playerStorage';
 
 export const useSocket = () => {
@@ -103,6 +103,7 @@ export const useSocket = () => {
       store.setLastResult(null); // Clear previous round result when new round starts
       store.setAudioUrl(null); // Clear previous audio when new round starts
       store.setAudioProcessed(false); // Reset audio processing flag
+      store.setError(null); // Clear any previous errors when new round starts
       
       console.log('🎮 Current player name in store:', store.playerName);
       console.log('🎮 Round speaker name:', round.speaker_name);
@@ -135,17 +136,10 @@ export const useSocket = () => {
       // Stop vote timer when round ends
       store.stopVoteTimer();
       
-      // Set game complete if the game is finished
+      // Don't set gameComplete here - wait for the game_complete event
+      // This prevents errors when rankings data isn't available yet
       if (data.isGameComplete) {
-        console.log('🏆 Game completed! Setting gameComplete state');
-        store.setGameComplete({
-          isComplete: true,
-          totalRounds: data.completedRounds || 0,
-          finalScores: data.scores,
-          rankings: Object.entries(data.scores)
-            .sort(([,a], [,b]) => b - a)
-            .map(([name, score], index) => ({ name, score, rank: index + 1 }))
-        });
+        console.log('🏆 Game is complete, waiting for game_complete event...');
       } else {
         // If game continues, update room state to waiting phase to avoid loading screen
         const currentRoomState = store.roomState;
@@ -159,7 +153,27 @@ export const useSocket = () => {
     });
 
     socket.on('game_complete', (data) => {
-      store.setGameComplete(data);
+      console.log('🎉 Received game_complete event:', data);
+      
+      // Ensure the data has the correct structure
+      const gameCompleteData: GameComplete = {
+        isComplete: true,
+        rankings: data.rankings || [],
+        totalRounds: data.totalRounds || 0,
+        totalCycles: data.totalCycles || 0,
+        finalScores: data.finalScores || {}
+      };
+      
+      store.setGameComplete(gameCompleteData);
+      
+      // Also update room phase to closed to reflect game end
+      const currentRoomState = store.roomState;
+      if (currentRoomState) {
+        store.setRoomState({
+          ...currentRoomState,
+          phase: 'closed'
+        });
+      }
     });
 
     // Audio events
@@ -167,6 +181,9 @@ export const useSocket = () => {
       console.log('🎵 audio_received event received:', data);
       console.log('Audio data type:', typeof data.audio, 'size:', data.audio?.byteLength || 'unknown');
       console.log('Audio data constructor:', data.audio?.constructor?.name);
+      
+      // Clear any previous audio errors
+      store.setError(null);
       
       try {
         let audioBlob;
@@ -314,6 +331,9 @@ export const useSocket = () => {
     const socket = socketClient.getSocket();
     console.log('🔥 sendAudio called, socket available:', !!socket, 'connected:', socket?.connected);
     console.log('🔥 Socket ID:', socket?.id);
+    
+    // Clear any previous errors when attempting to send audio
+    store.setError(null);
     
     if (socket && socket.connected) {
       const reader = new FileReader();

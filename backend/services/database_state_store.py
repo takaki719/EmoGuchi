@@ -4,7 +4,7 @@ Database-backed StateStore implementation
 
 from typing import Dict, Optional
 from datetime import datetime, timezone
-from sqlalchemy import select, delete
+from sqlalchemy import select, delete, func
 from sqlalchemy.orm import selectinload
 import logging
 import uuid
@@ -124,16 +124,32 @@ class DatabaseStateStore(StateStore):
                 vote_timeout=chat_session.vote_timeout
             )
             
-            # Load players
+            # Load players and calculate their scores from the current session only
             players = {}
             for participant in chat_session.participants:
+                # Calculate total score for this player from Score table
+                # BUT only for rounds that belong to the current chat session
+                from models.database import Score
+                
+                # Get round IDs that belong to the current session
+                round_ids_subquery = select(Round.id).where(Round.chat_session_id == chat_session.id)
+                
+                # Calculate sum of points for this player in current session rounds
+                score_result = await session.execute(
+                    select(func.sum(Score.points))
+                    .where(Score.session_id == participant.session_id)
+                    .where(Score.round_id.in_(round_ids_subquery))
+                )
+                session_score = score_result.scalar() or 0
+                
                 player = Player(
                     id=participant.session_id,
                     name=participant.player_name,
                     is_host=participant.is_host,
-                    score=0  # Will be calculated from scores table
+                    score=session_score  # Calculate from current session scores only
                 )
                 players[player.id] = player
+                logger.info(f"🎯 Loaded player {player.name} with session score: {session_score} (session: {chat_session.id})")
             
             # Load rounds
             rounds = []

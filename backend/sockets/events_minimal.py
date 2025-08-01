@@ -138,7 +138,8 @@ class GameSocketEvents:
                     }, room=room_id)
                 
                 # Send current room state
-                player_names = [p.name for p in room.players.values()]
+                # Include player scores in the room state
+                players_data = [{'name': p.name, 'score': p.score} for p in room.players.values()]
                 current_speaker = None
                 
                 if room.current_round and room.phase == GamePhase.IN_ROUND:
@@ -148,7 +149,7 @@ class GameSocketEvents:
                 
                 await events_instance.sio.emit('room_state', {
                     'roomId': room.id,
-                    'players': player_names,
+                    'players': players_data,
                     'phase': room.phase,
                     'config': room.config.model_dump(),
                     'currentSpeaker': current_speaker
@@ -252,10 +253,11 @@ class GameSocketEvents:
                 await state_store.update_room(room)
                 
                 # Send updated room state to all players to sync phase first
-                player_names = [p.name for p in room.players.values()]
+                # Include player scores in the room state
+                players_data = [{'name': p.name, 'score': p.score} for p in room.players.values()]
                 await events_instance.sio.emit('room_state', {
                     'roomId': room.id,
-                    'players': player_names,
+                    'players': players_data,
                     'phase': room.phase,
                     'config': room.config.model_dump(),
                     'currentSpeaker': speaker.name
@@ -686,10 +688,11 @@ class GameSocketEvents:
                 room = new_room
                 
                 # Send updated room state to all players
-                player_names = [p.name for p in room.players.values()]
+                # Include player scores in the room state (all 0 after restart)
+                players_data = [{'name': p.name, 'score': p.score} for p in room.players.values()]
                 room_state_data = {
                     'roomId': room.id,
-                    'players': player_names,
+                    'players': players_data,
                     'phase': room.phase,
                     'config': room.config.model_dump(),
                     'currentSpeaker': None
@@ -721,13 +724,21 @@ class GameSocketEvents:
             
             # Use traditional binary scoring for choice modes
             for player_id, voted_emotion in round_data.votes.items():
-                if voted_emotion == correct_emotion:
-                    # Listener gets point for correct guess
-                    room.players[player_id].score += 1
-                    correct_votes += 1
+                player = room.players.get(player_id)
+                if player:
+                    old_score = player.score
+                    if voted_emotion == correct_emotion:
+                        # Listener gets point for correct guess
+                        player.score += 1
+                        correct_votes += 1
+                        logger.info(f"Player {player.name} guessed correctly. Score: {old_score} -> {player.score}")
+                    else:
+                        logger.info(f"Player {player.name} guessed wrong. Score remains: {player.score}")
             
             # Speaker gets points based on how many guessed correctly
+            old_speaker_score = speaker.score
             speaker.score += correct_votes
+            logger.info(f"Speaker {speaker.name} got {correct_votes} correct votes. Score: {old_speaker_score} -> {speaker.score}")
             
             # Save individual scores to database
             await self._save_round_scores(room, round_data, correct_votes)
@@ -792,7 +803,21 @@ class GameSocketEvents:
                 logger.error(f"🔄 DB VERIFICATION: Could not retrieve room from DB")
             
             # Send results
+            # Log all players with their IDs and scores for debugging
+            logger.info(f"All players in room {room.id}:")
+            for pid, player in room.players.items():
+                logger.info(f"  - ID: {pid}, Name: {player.name}, Score: {player.score}")
+            
             scores = {player.name: player.score for player in room.players.values()}
+            
+            # Log votes debugging info
+            logger.info(f"Round votes in room {room.id}:")
+            for pid, emotion in round_data.votes.items():
+                player = room.players.get(pid)
+                if player:
+                    logger.info(f"  - Player {player.name} (ID: {pid}) voted: {emotion}")
+                else:
+                    logger.info(f"  - Unknown player (ID: {pid}) voted: {emotion}")
             
             # Get emotion name for display
             correct_emotion_name = correct_emotion  # fallback
@@ -817,7 +842,7 @@ class GameSocketEvents:
                 'correctEmotionId': correct_emotion,  # Add emotion ID for easy comparison
                 'speaker_name': speaker.name,
                 'scores': scores,
-                'votes': {room.players[pid].name: emotion for pid, emotion in round_data.votes.items()},
+                'votes': {room.players[pid].name: emotion for pid, emotion in round_data.votes.items() if pid in room.players},
                 'isGameComplete': is_game_complete,
                 'completedRounds': completed_rounds,
                 'maxRounds': room.config.max_rounds,
@@ -834,10 +859,11 @@ class GameSocketEvents:
             # Send updated room state if game continues (so frontend knows next speaker)
             if not is_game_complete:
                 next_speaker = room.get_current_speaker()
-                player_names = [p.name for p in room.players.values()]
+                # Include player scores in the room state
+                players_data = [{'name': p.name, 'score': p.score} for p in room.players.values()]
                 await self.sio.emit('room_state', {
                     'roomId': room.id,
-                    'players': player_names,
+                    'players': players_data,
                     'phase': room.phase,
                     'config': room.config.model_dump(),
                     'currentSpeaker': next_speaker.name if next_speaker else None
@@ -845,6 +871,25 @@ class GameSocketEvents:
                 logger.info(f"⏭️ Round completed, ready for next round in room {room.id}. Next speaker: {next_speaker.name if next_speaker else 'None'}")
             else:
                 logger.info(f"🏆 Game completed in room {room.id}!")
+                
+                # Send game_complete event with final rankings
+                final_rankings = sorted(
+                    [{'name': player.name, 'score': player.score} for player in room.players.values()],
+                    key=lambda x: x['score'],
+                    reverse=True
+                )
+                
+                # Add rank numbers
+                for i, player_data in enumerate(final_rankings):
+                    player_data['rank'] = i + 1
+                
+                logger.info(f"🏆 Sending game_complete event with rankings: {final_rankings}")
+                
+                await self.sio.emit('game_complete', {
+                    'rankings': final_rankings,
+                    'totalRounds': completed_rounds,
+                    'totalCycles': completed_cycles
+                }, room=room.id)
             
             logger.info(f"Round completed in room {room.id}: {correct_emotion_name}")
             

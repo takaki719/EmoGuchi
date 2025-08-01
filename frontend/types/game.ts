@@ -36,9 +36,14 @@ export interface Room {
   currentSpeaker?: string;
 }
 
+export interface PlayerInfo {
+  name: string;
+  score: number;
+}
+
 export interface RoomState {
   roomId: string;
-  players: string[];
+  players: (PlayerInfo | string)[];  // Support both formats for backward compatibility
   phase: GamePhase;
   config: RoomConfig;
   currentSpeaker?: string;

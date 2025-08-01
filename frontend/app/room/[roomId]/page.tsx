@@ -346,20 +346,27 @@ export default function RoomPage({ params }: { params: { roomId: string } }) {
           }`}>
             {roomState.players.map((player, index) => (
               <div
-                key={player}
+                key={typeof player === 'string' ? player : player.name}
                 className={`p-2 sm:p-3 rounded-lg border-2 ${
-                  player === playerName
+                  (typeof player === 'string' ? player : player.name) === playerName
                     ? 'border-blue-500 bg-blue-50'
-                    : player === roomState.currentSpeaker
+                    : (typeof player === 'string' ? player : player.name) === roomState.currentSpeaker
                     ? 'border-green-500 bg-green-50'
                     : 'border-gray-200 bg-gray-50'
                 }`}
               >
-                <div className="text-xs sm:text-sm font-medium truncate" title={player}>{player}</div>
-                {player === playerName && (
+                <div className="text-xs sm:text-sm font-medium truncate" title={typeof player === 'string' ? player : player.name}>
+                  {typeof player === 'string' ? player : player.name}
+                </div>
+                {typeof player === 'object' && player.score !== undefined && (
+                  <div className="text-xs sm:text-sm font-bold text-gray-700">
+                    {player.score}pt
+                  </div>
+                )}
+                {(typeof player === 'string' ? player : player.name) === playerName && (
                   <div className="text-xs text-blue-600">{t.common.you}</div>
                 )}
-                {player === roomState.currentSpeaker && (
+                {(typeof player === 'string' ? player : player.name) === roomState.currentSpeaker && (
                   <div className="text-xs text-green-600">{t.common.speaker}</div>
                 )}
               </div>
