@@ -136,11 +136,11 @@ app.add_middleware(
 # Create Socket.IO server with optional Redis adapter for scaling
 def create_socketio_server():
     """Create Socket.IO server with Redis adapter if configured"""
+    import socketio
+    
     # Check if Redis is configured for scaling
     if settings.REDIS_URL or (settings.REDIS_HOST and settings.REDIS_PORT):
         try:
-            import socketio
-            
             # Try to create Redis manager for multi-instance scaling
             if settings.REDIS_URL:
                 redis_url = settings.REDIS_URL
