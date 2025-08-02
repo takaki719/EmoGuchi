@@ -23,11 +23,13 @@ def download_model_from_r2():
     try:
         logger.info("📥 R2からKushinadaモデルをダウンロード中...")
         
-        # ローカルパスの確認
+        # ローカルパスの確認（Fly.io Volumesでの永続化対応）
         local_model_path = settings.KUSHINADA_LOCAL_PATH
-        if os.path.exists(local_model_path):
+        if os.path.exists(local_model_path) and os.path.exists(os.path.join(local_model_path, "config.json")):
             logger.info(f"✅ モデルは既にローカルに存在: {local_model_path}")
             return local_model_path
+        
+        logger.info(f"⚠️ モデルがローカルに見つからない、R2からダウンロード必要: {local_model_path}")
         
         # ストレージサービス初期化
         storage = StorageService()
