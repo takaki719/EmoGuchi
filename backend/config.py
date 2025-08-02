@@ -67,7 +67,7 @@ class Settings:
     
     # Redis settings (for Socket.IO scaling)
     REDIS_URL: str = os.getenv("REDIS_URL", "")  # Redis connection URL
-    REDIS_HOST: str = os.getenv("REDIS_HOST", "localhost")
+    REDIS_HOST: str = os.getenv("REDIS_HOST", "")
     REDIS_PORT: int = int(os.getenv("REDIS_PORT", "6379"))
     REDIS_DB: int = int(os.getenv("REDIS_DB", "0"))
     
