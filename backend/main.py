@@ -124,7 +124,9 @@ app.add_middleware(
         "http://localhost:3000",
         "http://localhost:3001",
         # Additional Cloudflare Pages domains
-        "https://503fc1a1.emoguchi.pages.dev"
+        "https://503fc1a1.emoguchi.pages.dev",
+        # Wildcard for all Cloudflare Pages preview deployments
+        "https://*.emoguchi.pages.dev"
     ],
     allow_credentials=True,
     allow_methods=["*"],
