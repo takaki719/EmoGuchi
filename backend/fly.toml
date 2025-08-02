@@ -14,13 +14,13 @@ primary_region = 'nrt'
   PYTHONUNBUFFERED = '1'
   STORAGE_TYPE = 's3'
   KUSHINADA_MODEL_SOURCE = 'r2'
-  KUSHINADA_LOCAL_PATH = '/app/models/kushinada-hubert-large'
+  KUSHINADA_LOCAL_PATH = '/app/ml_models/kushinada-hubert-large'
   # Socket.IO specific settings
   SOCKETIO_SINGLE_INSTANCE = 'true'
 
 [mounts]
   source = "kushinada_models"
-  destination = "/app/models"
+  destination = "/app/ml_models"
 
 [http_service]
   internal_port = 8000
