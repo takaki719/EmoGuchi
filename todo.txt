@@ -1,0 +1,29 @@
+  # 1. Volumeを作成（1GB以上で設定）
+  fly volumes create kushinada_models --region nrt --size 15
+
+  # 2. 初回デプロイ時にモデルをダウンロード
+  cfly deploy
+
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+  # 3. SSH接続してモデルをダウンロード（初回のみ）
+  fly ssh console
+  cd /app/models
+  # 手動でR2からダウンロード、または自動ダウンロードを待つ
+
+  方法1: 自動ダウンロード（推奨）
+  fly deploy
+  # 初回起動時にアプリが自動でR2からダウンロード
+  # /app/models/kushinada-hubert-large に保存される
+
+  方法2: 手動SSH接続
+  fly ssh console
+  cd /app/models
+  # ここでPythonスクリプト実行またはcurlでR2から取得
+  # 例: python -c "from kushinada_infer import download_model_from_r2; download_model_from_r2()"
+
+  方法3: 事前アップロード
+  # ローカルで準備
+  tar -czf kushinada-hubert-large.tar.gz kushinada-hubert-large/
+  fly ssh console
+  # SCPまたはwgetでアップロード後、/app/models で解凍
